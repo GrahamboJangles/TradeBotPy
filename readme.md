@@ -1,13 +1,14 @@
 Yes, there are some lines that could be written better. But I just made this to work. And it does... For the most part.
-Is lite enough to run on a Raspberry Pi Zero.
 
-Just add your own strategy and have it return an advice column.
+- Is lite enough to run on a Raspberry Pi Zero.
 
-Enter your own email credentials for error reporting.
+- Just add your own strategy and have it return an advice column.
 
-Enter your own API keys.
+- Enter your own email credentials for error reporting.
 
-Pull requests welcome.
+- Enter your own API keys.
+
+- Pull requests welcome.
 
 
 
