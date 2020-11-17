@@ -98,8 +98,8 @@ except:
 # authentication and connection details
 # api_key = API_KEY
 # api_secret = SECRET_KEY
-api_key = "PKKDQYLFQM3HPF1WDTP4" #@param{type:"string"}
-api_secret = "yusZVvrd5N0EZGVgq5RfN4H5u2fTzVJ2iOncZsKw" #@param{type:"string"}
+api_key = "" #@param{type:"string"}
+api_secret = "" #@param{type:"string"}
 base_url = 'https://paper-api.alpaca.markets'
 # base_url = 'https://data.alpaca.markets'
  
