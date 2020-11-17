@@ -1,4 +1,4 @@
-This thing works mostly.
+Yes, there are some lines that could be written better. But I just made this to work. And it does... For the most part.
 
 Just add your own strategy and have it return an advice column.
 
