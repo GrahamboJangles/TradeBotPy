@@ -17,12 +17,14 @@ base_url = 'https://paper-api.alpaca.markets'
 api = tradeapi.REST(api_key, api_secret, base_url, api_version='v2')
 
 def wait_for_open():
-  print("Sleeping 1 min because market is closed...")
-  time.sleep(60)
-  # Check if the market is open now.
-  clock = api.get_clock()
-  open = clock.is_open
-  return open
+  global backtesting
+  if not backtesting:
+    print("Sleeping 1 min because market is closed...")
+    time.sleep(60)
+    # Check if the market is open now.
+    clock = api.get_clock()
+    open = clock.is_open
+    return open
 
 e = ""
 def sendEmail(e=e):
@@ -31,6 +33,8 @@ def sendEmail(e=e):
   traceback = traceback.format_exc()
   import smtplib, ssl
 
+  # email = "" #@param {type:"string"}
+  # password = '' #@param {type:"string"}
   email = "" #@param {type:"string"}
   password = '' #@param {type:"string"}
 
@@ -104,37 +108,40 @@ print(curr_datetime)
 #print(current_time)
  
 extended_hours = False
-backtesting = False #@param {type:"boolean"}
+backtesting = True #@param {type:"boolean"}
 
-if current_time > "15:45":
-  print("Market not open")
-  wait_for_open() 
-if current_time < "18" and current_time > "16": # 18 is 6
-  print("During aftermarket hours")
-  extended_hours = True
-  open = True
-elif (current_time < "16") and (current_time > "09:30 AM"): # 16 is 4
-  print("During market hours")
-  extended_hours = False
-  open = True
-elif (current_time > "09 AM") and (current_time < "09:30 AM"):
-  print("During beforemarket hours")
-  extended_hours = True
-  open = True
+if not backtesting:
+  if current_time > "16":
+    print("Market not open")
+    wait_for_open() 
+  if current_time < "18" and current_time > "16": # 18 is 6
+    print("During aftermarket hours")
+    extended_hours = True
+    open = True
+  elif (current_time < "16") and (current_time > "09:30 AM"): # 16 is 4
+    print("During market hours")
+    extended_hours = False
+    open = True
+  elif (current_time > "09 AM") and (current_time < "09:30 AM"):
+    print("During beforemarket hours")
+    extended_hours = True
+    open = True
+  else:
+    open = False
+    if not open:
+      wait_for_open()
+    if not backtesting:
+      pass
+      # waitTillMarketclose()
+      # raise Exception("Market is closed") 
+      # sys.exit("Market is closed")
+      # time.sleep(60)
+      # now = utc_to_local(datetime.now())
+      # current_time = now.strftime('%H:%M:%S')
+      # if current_time > "09":
+      #   open = True
 else:
-  open = False
-  if not open:
-    wait_for_open()
-  if not backtesting:
-    pass
-    # waitTillMarketclose()
-    # raise Exception("Market is closed") 
-    # sys.exit("Market is closed")
-    # time.sleep(60)
-    # now = utc_to_local(datetime.now())
-    # current_time = now.strftime('%H:%M:%S')
-    # if current_time > "09":
-    #   open = True
+  open = True
  
  
 # if current_time < six:
@@ -205,7 +212,7 @@ while True:
       # ts = TimeSeries(key, output_format='pandas')
       # ti = TechIndicators(key)
   
-      time_range_start = "9:30" #@param {type:"string"}
+      time_range_start = "10:00" #@param {type:"string"}
       time_range_end = "16:00" #@param {type:"string"}
   
       def add_calculations(data):
@@ -233,6 +240,10 @@ while True:
   
         #last = stock['Last']
         close = stock['close']
+  
+        # for i in range(1, len(close)):
+        #   #last[i] = stock.loc[stock.index[i], 'close']
+        #   last[i] = close[i - 1]
   
         # if (stock.loc[stock.index[count], 'advice'] == "SELL"):
         #   balance = stock.loc[stock.index[count], 'Balance']
@@ -471,7 +482,7 @@ while True:
   
       def get_advice(data, strategy="default"):
         if strategy == "default":
-          # Strategy here
+          # Your strategy here
           return stock['advice']
   
       def do_new_data():  
@@ -498,7 +509,7 @@ while True:
               ticker_data = ticker_data.df
               ticker_data = ticker_data.between_time(time_range_start, time_range_end) 
           else:
-            start = "2014-07-01" #@param {type:"date"}
+            start = "2020-01-01" #@param {type:"date"}
             # start = "2014-01-01T09:30:00-04:00"
             start += "T09:30:00-04:00"
             ticker_data = api.get_barset(ticker, timeframe="1Min", start=start)
@@ -706,16 +717,18 @@ while True:
         print(curr_datetime)
         #print(current_time)
         
-        if current_time == "15:45":
+        if backtesting:
+          input("Pausing for backtesting")
+        
+        if current_time == "16":
           api.close_all_positions()
           print("Sleeping until next day...")
           time.sleep(63000)
           open = False
           if not open:
             wait_for_open()
-        if current_time > "15:45":
+        if current_time > "16":
           api.close_all_positions()
-          print("15 min ======================================")
           open = False
           if not open:
             wait_for_open()
