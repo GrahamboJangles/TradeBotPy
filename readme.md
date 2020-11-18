@@ -2,6 +2,8 @@ Yes, there are some lines that could be written better. But I just made this to 
 
 - Is lite enough to run on a Raspberry Pi Zero.
 
+- Backtesting and live trading in the same script, just change the backtesting variable.
+
 - Just add your own strategy and have it return an advice column.
 
 - Enter your own email credentials for error reporting.
