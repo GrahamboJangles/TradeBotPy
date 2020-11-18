@@ -1,15 +1,78 @@
 #@title Trade Bot { form-width: "25%" }
 
+try:
+  import alpaca_trade_api as tradeapi
+except:
+  print("Installing alpaca_trade_api")
+  # !pip install alpaca_trade_api --quiet
+  import alpaca_trade_api as tradeapi
+
+# authentication and connection details
+api_key = "" #@param{type:"string"}
+api_secret = "" #@param{type:"string"}
+base_url = 'https://paper-api.alpaca.markets'
+# base_url = 'https://data.alpaca.markets'
+
+# instantiate REST API
+api = tradeapi.REST(api_key, api_secret, base_url, api_version='v2')
+
+def wait_for_open():
+  print("Sleeping 1 min because market is closed...")
+  time.sleep(60)
+  # Check if the market is open now.
+  clock = api.get_clock()
+  open = clock.is_open
+  return open
+
+e = ""
+def sendEmail(e=e):
+  print("Sending email...")
+  import traceback
+  traceback = traceback.format_exc()
+  import smtplib, ssl
+
+  email = "" #@param {type:"string"}
+  password = '' #@param {type:"string"}
+
+  port = 587  # For starttls
+  smtp_server = "smtp.gmail.com"
+  sender_email = email
+  receiver_email = email
+  subject_text = """\
+  TRADING BOT"""
+  message_text = str(e)
+  message_text = '\n'
+  message_text += str(traceback)
+  #message_text += str(portfolio_value)
+  message_text += '\n'
+  try: 
+    message_text += positions
+  except Exception as e:
+    print(e)
+  #message_text += str(print_position())
+  message_text += f"Current value is: ${portfolio_value}"
+  message_text += '\n'
+  message_text += f"Total profit: ${portfolio_value - investment:.2f}"
+  message = 'Subject: %s\n%s' % (subject_text, message_text)
+  context = ssl.create_default_context()
+  with smtplib.SMTP(smtp_server, port) as server:
+      server.ehlo()  # Can be omitted
+      server.starttls(context=context)
+      server.ehlo()  # Can be omitted
+      server.login(sender_email, password)
+      server.sendmail(sender_email, receiver_email, message)
+
 def play_sound(sound):
-  # https://stackoverflow.com/a/54295274/8142044
-  # Play an audio beep. Any audio URL will do.
-   from google.colab import output
-   if sound=="filled":
-     output.eval_js('new Audio("https://proxy.notificationsounds.com/notification-sounds/eventually-590/download/file-sounds-1137-eventually.ogg").play()')
-   if sound=="error":
-     output.eval_js('new Audio("https://proxy.notificationsounds.com/notification-sounds/point-blank-589/download/file-sounds-1136-point-blank.ogg").play()')
+  print("placeholder function for sound")
+  # # https://stackoverflow.com/a/54295274/8142044
+  # # Play an audio beep. Any audio URL will do.
+  # from google.colab import output
+  # if sound=="filled":
+  #   output.eval_js('new Audio("https://proxy.notificationsounds.com/notification-sounds/eventually-590/download/file-sounds-1137-eventually.ogg").play()')
+  # if sound=="error":
+  #   output.eval_js('new Audio("https://proxy.notificationsounds.com/notification-sounds/point-blank-589/download/file-sounds-1136-point-blank.ogg").play()')
  
-%tb
+# %tb
 
 import time
 import sys
@@ -29,8 +92,8 @@ def utc_to_local(utc_dt):
     local_dt = utc_dt.replace(tzinfo=pytz.utc).astimezone(local_tz)
     return local_tz.normalize(local_dt) # .normalize might be unnecessary
  
-#now = datetime.now()
-now = utc_to_local(datetime.now())
+now = datetime.now()
+#now = utc_to_local(datetime.now())
 #24-hour format
 # print(now.strftime('%Y/%m/%d %H:%M:%S'))
 current_time = now.strftime('%H:%M:%S')
@@ -42,7 +105,10 @@ print(curr_datetime)
  
 extended_hours = False
 backtesting = False #@param {type:"boolean"}
- 
+
+if current_time > "15:45":
+  print("Market not open")
+  wait_for_open() 
 if current_time < "18" and current_time > "16": # 18 is 6
   print("During aftermarket hours")
   extended_hours = True
@@ -57,6 +123,8 @@ elif (current_time > "09 AM") and (current_time < "09:30 AM"):
   open = True
 else:
   open = False
+  if not open:
+    wait_for_open()
   if not backtesting:
     pass
     # waitTillMarketclose()
@@ -86,25 +154,7 @@ ticker = "SPY" #@param {type:"string"}
  
 investment = 25100 #@param {type:"integer"}
 margin = True #@param {type:"boolean"}
-margin_times =  4#@param {type:"number"}
- 
-try:
-  import alpaca_trade_api as tradeapi
-except:
-  print("Installing alpaca_trade_api")
-  # !pip install alpaca_trade_api --quiet
-  import alpaca_trade_api as tradeapi
- 
-# authentication and connection details
-# api_key = API_KEY
-# api_secret = SECRET_KEY
-api_key = "" #@param{type:"string"}
-api_secret = "" #@param{type:"string"}
-base_url = 'https://paper-api.alpaca.markets'
-# base_url = 'https://data.alpaca.markets'
- 
-# instantiate REST API
-api = tradeapi.REST(api_key, api_secret, base_url, api_version='v2')
+margin_times = 4 #@param {type:"number"}
  
 # obtain account information
 account = api.get_account()
@@ -121,17 +171,13 @@ else:
   api.update_account_configurations(no_shorting=True)
 while True:
   while not open:
-    print("Sleeping...")
-    time.sleep(60)
-    # Check if the market is open now.
-    clock = api.get_clock()
-    open = clock.is_open
+    open = wait_for_open()
   else:
     # while True:
     try:
       CONSTANT = 15 # 15 minutes before close
       CONSTANT_SECONDS = CONSTANT * 60 # time  in seconds (900 seconds = 15 min)
-      print(CONSTANT_SECONDS)
+      # print(CONSTANT_SECONDS)
   
   
       # fifteen minute before: 1604695536
@@ -151,6 +197,8 @@ while True:
       import pandas as pd
   
       initialize = True
+  
+      # Your key here
   
         
       # Chose your output format, or default to JSON (python dict)
@@ -185,12 +233,6 @@ while True:
   
         #last = stock['Last']
         close = stock['close']
-  
-        # for i in range(1, len(close)):
-        #   #last[i] = stock.loc[stock.index[i], 'close']
-        #   last[i] = close[i - 1]
-  
-        #stock['Advice']
   
         # if (stock.loc[stock.index[count], 'advice'] == "SELL"):
         #   balance = stock.loc[stock.index[count], 'Balance']
@@ -256,6 +298,9 @@ while True:
         #     real_choice[i] = "BUY" #
         #   if price_change[i+1] < 0:
         #     real_choice[i] = "SELL" #
+        
+  
+      # current contents of your for loop
   
         time_start = time.time()
         for i in tqdm(range(1, len(price_change)-1), disable=not backtesting, desc="Calculating buy and sell signals... [2/3]"):
@@ -282,7 +327,7 @@ while True:
           #   if real_choice.iloc[i] == "HOLD": 
           #     real_choice.iloc[i] = real_choice.iloc[i-1]
   
-          '''These two loops above and below are seemingly interchangable, but .iloc proves to be actually slower.'''
+          '''These two above and below are seemingly interchangable, but .iloc proves to be actually slower.'''
   
           for i in tqdm(range(1, len(real_choice)), disable=not backtesting, desc="Converting HOLDs and calculating backtest correct/incorrect... [3/3]"):
             if (advice[i] == "HOLD"):
@@ -387,7 +432,7 @@ while True:
   
             cf.go_offline()
   
-            %matplotlib inline
+            #%matplotlib inline
             init_notebook_mode(connected=False)
             def configure_plotly_browser_state():
               import IPython
@@ -426,7 +471,7 @@ while True:
   
       def get_advice(data, strategy="default"):
         if strategy == "default":
-          # Your strategy here, have it return a column of buy, sell, and optionally holds
+          # Strategy here
           return stock['advice']
   
       def do_new_data():  
@@ -566,7 +611,7 @@ while True:
           print(f"Close standard deviation: {close_std}")
   
         buy_and_hold = ticker_data['close'][-1] - ticker_data['close'][0]
-        print(f"first close - last close: {buy_and_hold}")
+        print(f"first close - last close: {buy_and_hold:.2f}")
         # input()
         try:
           # print("Getting position close")
@@ -589,9 +634,19 @@ while True:
           except Exception as e:
             print(e)
             print(" with 1 share")
+
+        # https://stackoverflow.com/a/29370182/8142044
+        #greater than the start date and smaller than the end date
+        global now
+        mask = (ticker_data.index > now.strftime('%Y/%m/%d')) & (ticker_data.index <= now.strftime('%Y/%m/%d'))
+        today_data = ticker_data.loc[mask]
+        avg_vol = ticker_data['volume'].mean()
+        today_avg_vol = today_data['volume'].mean()
+        print(f"Average volume: {int(avg_vol)}")
+        print(f"Today's average volume: {today_avg_vol}")
   
         bot_performance = ticker_data['balance'][-1] - ticker_data['balance'][0]
-        print(f"first balance - last balance: {bot_performance}")
+        print(f"first balance - last balance: {bot_performance:.2f}")
         # input()
         try:
           # print("Getting position bot")
@@ -640,8 +695,8 @@ while True:
   
         from datetime import datetime
         
-        #now = datetime.now()
-        now = utc_to_local(datetime.now())
+        now = datetime.now()
+        #now = utc_to_local(datetime.now())
         #24-hour format
         # print(now.strftime('%Y/%m/%d %H:%M:%S'))
         current_time = now.strftime('%H:%M:%S')
@@ -651,48 +706,66 @@ while True:
         print(curr_datetime)
         #print(current_time)
         
-        if current_time >= "15:45":
+        if current_time == "15:45":
           api.close_all_positions()
           print("Sleeping until next day...")
           time.sleep(63000)
           open = False
+          if not open:
+            wait_for_open()
+        if current_time > "15:45":
+          api.close_all_positions()
+          print("15 min ======================================")
+          open = False
+          if not open:
+            wait_for_open()
         if current_time < "18" and current_time > "16": # 18 is 6
           print("During aftermarket hours")
           extended_hours = True
           open = True
+          if not open:
+            wait_for_open()
         elif (current_time < "16") and (current_time > "09:30 AM"): # 16 is 4
           print("During market hours")
           open = True
           extended_hours = False
+          if not open:
+            wait_for_open()
         elif (current_time > "09 AM") and (current_time < "09:30 AM"):
           print("During beforemarket hours")
           extended_hours = True
           open = True
+          if not open:
+            wait_for_open()
         else:
           open = False
           if not backtesting:
             pass
             # raise Exception("Market is closed") 
             # sys.exit("Market is closed")
-        
-        margin = True
+          if not open:
+            wait_for_open()
+ 
+        global margin
 
         if margin and (not current_time > "15:45"):
-          portfolio_value = portfolio_value * margin_times
+          pass
+          #portfolio_value = portfolio_value * margin_times
         else:
           margin = False
           margin_times = 1
 
         #if not margin:
           
-  
+        #global margin_times
         # quantity = 60 #20
         quantity = ((float(account.last_equity))*margin_times) / limit_price
-        bp_quantity = float(account.regt_buying_power) / limit_price
-        print(f"bp qty:{bp_quantity} qty:{quantity}")
-        #if (bp_quantity < quantity) and (bp_quantity >= 1):
-            #quantity = bp_quantity
-        print(f"Buying power: {account.buying_power}")
+        #bp_quantity = float(account.regt_buying_power) / limit_price
+        bp_quantity = float(account.buying_power) / limit_price
+        print(f"bp qty:{int(bp_quantity)} qty: {int(quantity)}")
+        if (bp_quantity < quantity) and (bp_quantity >= 1):
+            quantity = bp_quantity
+        print(f"Buying power: ${account.buying_power}")
         #quantity = portfolio_value / limit_price
         quantity = int(quantity)
         if action == "sell":
@@ -717,7 +790,7 @@ while True:
   
       
         trade = True
-        time_to_wait = 49 #@param {type:"slider", min:1, max:60, step:1}
+        time_to_wait = 47 #@param {type:"slider", min:1, max:60, step:1}
         
         # if (short_market - (limit_price * quantity)) < -investment:
         #   print((short_market - (limit_price * quantity)))
@@ -808,7 +881,7 @@ while True:
         # print(f"ext hours: {extended_hours}")
         print(f"trade: {trade}")
   
-        # Check when the market was open
+        # Check when the market was open on Dec. 1, 2018
         from datetime import datetime
         todays_date = datetime.today().strftime('%Y-%m-%d')
         date = todays_date
@@ -905,12 +978,26 @@ while True:
               #     # limit_price=400.00, 
               #     # client_order_id=order_id)
             except Exception as e: 
-              e = str(e)
-              print(account.buying_power)
-              print(e)
-              print(e[:36])
-              #if True:
-              if e[:36] == "insufficient qty available for order":
+              print(f"Buying power: {account.buying_power}")
+              def bp_error(e=e):
+                i = quantity - 1
+                filled = False
+                while not filled:
+                  while i > 0:
+                    try:
+                      order(quantity=i)
+                    except Exception as e:
+                      print(e)
+                      filled = False
+                      i -= 1
+                    else:
+                      print("what the fuck Filled")
+                      filled = True
+                  else:
+                    raise Exception(e)
+                else:
+                  filled = True
+              def qty_error(e=e):
                 print("Not filled")
                 filled = False
                 while not filled:
@@ -925,20 +1012,24 @@ while True:
                     #     # limit_price=400.00, 
                     #     # client_order_id=order_id)
                   except Exception as e:
+                    filled = False
                     e = str(e)
                     print(e)
                     print(e[:36])
-                    #if True:
-                    if e[:36] == "insufficient qty available for order":
-                      print("Not filled")
-                      filled = False
-                    else:
-                      print("break")
-                      break
+                    if e[:25] == "insufficient buying power":
+                      bp_error()
                   else:
                     print("filled")
                     filled = True
                     play_sound("filled")
+              filled = False
+              e = str(e)
+              print(e)
+              print(e[:36])
+              if e[:36] == "insufficient qty available for order":
+                qty_error()
+              elif e[:25] == "insufficient buying power":
+                bp_error()
             else:
               print("Order filled")
               filled = True
@@ -1031,7 +1122,7 @@ while True:
           # Doesn't work for some reason, get do position.side
           # position = api.list_positions()
           print("Getting positions function")
-          global position
+          #global position
           position = api.get_position(ticker)
           # print(position)
           print(f"Currently {position.side} {position.qty} shares of {position.symbol} for ${position.market_value}")
@@ -1046,11 +1137,12 @@ while True:
       import time
   
       def get_new_data():
+        # return open
         oldtime = time.time()
-        time_to_wait = 49 #@param {type:"slider", min:1, max:60, step:1}
+        time_to_wait = 47 #@param {type:"slider", min:1, max:60, step:1}
   
         # print(oldtime)
-        print("it's been a minute, getting new data...")
+        print("It's been a minute, getting new data...")
         # ticker_data, ticker_meta_data = ts.get_intraday(symbol='SPY', interval='1min', outputsize='full')
   
         ticker_data = api.get_barset(ticker, timeframe="1Min")
@@ -1077,6 +1169,7 @@ while True:
   
         ticker_data = do_new_data()
         ran_this_already = True
+        #return open
         if (time.time() - oldtime) < time_to_wait:
           print("It has not been a minute")
           first_time = False
@@ -1142,43 +1235,6 @@ while True:
   
       #print_position()
 
-      def sendEmail():
-        print("Sending email...")
-        import traceback
-        traceback = traceback.format_exc()
-        import smtplib, ssl
-
-        email = "" #@param {type:"string"}
-        password = '' #@param {type:"string"}
-
-        port = 587  # For starttls
-        smtp_server = "smtp.gmail.com"
-        sender_email = email
-        receiver_email = email
-        subject_text = """\
-        TRADING BOT"""
-        # message_text = str(e)
-        message_text = '\n'
-        message_text += str(traceback)
-        message_text += str(portfolio_value)
-        message_text += '\n'
-        try: 
-          message_text += positions
-        except Exception as e:
-          print(e)
-        #message_text += str(print_position())
-        message_text += f"Current value is: ${portfolio_value}"
-        message_text += '\n'
-        message_text += f"Total profit: ${portfolio_value - investment:.2f}"
-        message = 'Subject: %s\n%s' % (subject_text, message_text)
-        context = ssl.create_default_context()
-        with smtplib.SMTP(smtp_server, port) as server:
-            server.ehlo()  # Can be omitted
-            server.starttls(context=context)
-            server.ehlo()  # Can be omitted
-            server.login(sender_email, password)
-            server.sendmail(sender_email, receiver_email, message)
-
       sendEmail()
       play_sound("error")
       sys.exit(e)
@@ -1193,10 +1249,17 @@ while True:
         # raise
   
 # TODO:
+# - if first order was too long ago, it will slow down pi
+# - correlation graph of bot performance backtest & profit
+
 # - check if need to trade during extended hours
 # - might need to add something to check if this has already been run because it appends over and over if i run it multiple times
+# - maybe I shouldn't do extended hours, it doesn't really seem to be worth it
 # - add some additional statistical analysis to the backtesting (STD, # of days up/# of days down)
+# - additonally, backtest closing positions before market close
 # - maybe add a debugging mode to print stuff
+# - backtest AMZN with no shorting
+# - backtest with 2-4x margin during market hours
 # - add a test to see if we actually get filled, and if not, try again
 # - maybe for ext market limit order, gradually increase limit_order difference if not filled
  
@@ -1208,7 +1271,3 @@ while True:
 # - make it so the loading bar is only called if it will take a certain amount of time
 # - replace orders with order function
 # - add margin options
-# - maybe I shouldn't do extended hours, it doesn't really seem to be worth it
-# - backtest closing positions before market close
-# - backtest AMZN with no shorting
-# - backtest with 2-4x margin during market hours
