@@ -1,3 +1,4 @@
+
 #@title Trade Bot { form-width: "25%" }
 
 try:
@@ -17,24 +18,24 @@ base_url = 'https://paper-api.alpaca.markets'
 api = tradeapi.REST(api_key, api_secret, base_url, api_version='v2')
 
 def wait_for_open():
-  global backtesting
-  if not backtesting:
+  global open  
+  if not open:
     print("Sleeping 1 min because market is closed...")
     time.sleep(60)
     # Check if the market is open now.
     clock = api.get_clock()
     open = clock.is_open
-    return open
+  return open
 
+investment = 0.0
+portfolio_value = 0.0
 e = ""
-def sendEmail(e=e):
+def sendEmail(e=e, portfolio_value=portfolio_value, investment=investment):
   print("Sending email...")
   import traceback
   traceback = traceback.format_exc()
   import smtplib, ssl
 
-  # email = "" #@param {type:"string"}
-  # password = '' #@param {type:"string"}
   email = "" #@param {type:"string"}
   password = '' #@param {type:"string"}
 
@@ -96,8 +97,8 @@ def utc_to_local(utc_dt):
     local_dt = utc_dt.replace(tzinfo=pytz.utc).astimezone(local_tz)
     return local_tz.normalize(local_dt) # .normalize might be unnecessary
  
-now = datetime.now()
-#now = utc_to_local(datetime.now())
+# now = datetime.now()
+now = utc_to_local(datetime.now())
 #24-hour format
 # print(now.strftime('%Y/%m/%d %H:%M:%S'))
 current_time = now.strftime('%H:%M:%S')
@@ -110,38 +111,38 @@ print(curr_datetime)
 extended_hours = False
 backtesting = True #@param {type:"boolean"}
 
-if not backtesting:
-  if current_time > "16":
-    print("Market not open")
-    wait_for_open() 
-  if current_time < "18" and current_time > "16": # 18 is 6
-    print("During aftermarket hours")
-    extended_hours = True
-    open = True
-  elif (current_time < "16") and (current_time > "09:30 AM"): # 16 is 4
-    print("During market hours")
-    extended_hours = False
-    open = True
-  elif (current_time > "09 AM") and (current_time < "09:30 AM"):
-    print("During beforemarket hours")
-    extended_hours = True
-    open = True
-  else:
-    open = False
-    if not open:
-      wait_for_open()
-    if not backtesting:
-      pass
-      # waitTillMarketclose()
-      # raise Exception("Market is closed") 
-      # sys.exit("Market is closed")
-      # time.sleep(60)
-      # now = utc_to_local(datetime.now())
-      # current_time = now.strftime('%H:%M:%S')
-      # if current_time > "09":
-      #   open = True
-else:
+print(current_time)
+if current_time > "15:45":
+  print("Market not open")
+  wait_for_open() 
+if current_time < "18" and current_time > "16": # 18 is 6
+  print("During aftermarket hours")
+  extended_hours = True
+  #open = True
+  open = False
+elif (current_time < "16") and (current_time > "09:30 AM"): # 16 is 4
+  print("During market hours")
+  extended_hours = False
   open = True
+elif (current_time > "09 AM") and (current_time < "09:30 AM"):
+  print("During beforemarket hours")
+  extended_hours = True
+  #open = True
+  open = False
+else:
+  open = False
+  if not open:
+    wait_for_open()
+  if not backtesting:
+    pass
+    # waitTillMarketclose()
+    # raise Exception("Market is closed") 
+    # sys.exit("Market is closed")
+    # time.sleep(60)
+    # now = utc_to_local(datetime.now())
+    # current_time = now.strftime('%H:%M:%S')
+    # if current_time > "09":
+    #   open = True
  
  
 # if current_time < six:
@@ -159,12 +160,13 @@ else:
 ticker = "SPY" #@param {type:"string"}
 # backtest_start_date = "2020-01-01"
  
-investment = 25100 #@param {type:"integer"}
+#investment = 25000 #@param {type:"integer"}
 margin = True #@param {type:"boolean"}
 margin_times = 4 #@param {type:"number"}
  
 # obtain account information
 account = api.get_account()
+investment = float(account.last_equity)
 print(account)
 #starting_portfolio_value = account.portfolio_value
  
@@ -212,10 +214,10 @@ while True:
       # ts = TimeSeries(key, output_format='pandas')
       # ti = TechIndicators(key)
   
-      time_range_start = "10:00" #@param {type:"string"}
+      time_range_start = "9:30" #@param {type:"string"}
       time_range_end = "16:00" #@param {type:"string"}
   
-      def add_calculations(data):
+      def add_calculations(data, margin_times=margin_times):
   
         #stock = ticker_data
   
@@ -464,7 +466,7 @@ while True:
             theme='solar', mode='markers+lines',title='Trading bot')
   
         if backtesting:
-          plot_type = "pyplot" #@param ["interactive", "pyplot"]
+          plot_type = "pyplot" #Fparam ["interactive", "pyplot"]
         else:
           plot_type = "pyplot"
         plot(data, type=plot_type)
@@ -482,10 +484,10 @@ while True:
   
       def get_advice(data, strategy="default"):
         if strategy == "default":
-          # Your strategy here
+          #Your strat
           return stock['advice']
   
-      def do_new_data():  
+      def do_new_data(margin_times=margin_times):  
         try:
           ticker_data
         except NameError:
@@ -509,7 +511,7 @@ while True:
               ticker_data = ticker_data.df
               ticker_data = ticker_data.between_time(time_range_start, time_range_end) 
           else:
-            start = "2020-01-01" #@param {type:"date"}
+            start = "2020-11-16" #@param {type:"date"}
             # start = "2014-01-01T09:30:00-04:00"
             start += "T09:30:00-04:00"
             ticker_data = api.get_barset(ticker, timeframe="1Min", start=start)
@@ -649,8 +651,10 @@ while True:
         # https://stackoverflow.com/a/29370182/8142044
         #greater than the start date and smaller than the end date
         global now
-        mask = (ticker_data.index > now.strftime('%Y/%m/%d')) & (ticker_data.index <= now.strftime('%Y/%m/%d'))
+        mask = (ticker_data.index >= now.strftime('%Y/%m/%d')) & (ticker_data.index <= now.strftime('%Y/%m/%d'))
         today_data = ticker_data.loc[mask]
+        #print("Today Data ===============================================")
+        #print(today_data)
         avg_vol = ticker_data['volume'].mean()
         today_avg_vol = today_data['volume'].mean()
         print(f"Average volume: {int(avg_vol)}")
@@ -717,9 +721,6 @@ while True:
         print(curr_datetime)
         #print(current_time)
         
-        if backtesting:
-          input("Pausing for backtesting")
-        
         if current_time == "16":
           api.close_all_positions()
           print("Sleeping until next day...")
@@ -729,6 +730,7 @@ while True:
             wait_for_open()
         if current_time > "16":
           api.close_all_positions()
+          print("15 min ======================================")
           open = False
           if not open:
             wait_for_open()
@@ -768,13 +770,16 @@ while True:
           margin = False
           margin_times = 1
 
-        #if not margin:
-          
+        #margin_times = 4  
         #global margin_times
         # quantity = 60 #20
-        quantity = ((float(account.last_equity))*margin_times) / limit_price
+        keep_as_cash = 70000-20000
+        quantity = ((float(account.last_equity) - keep_as_cash) * margin_times) / limit_price
+        #keep_as_cash = 600
+        #quantity = quantity - keep_as_cash
         #bp_quantity = float(account.regt_buying_power) / limit_price
-        bp_quantity = float(account.buying_power) / limit_price
+        bp_quantity = (float(account.buying_power) - (keep_as_cash)) / limit_price
+        #bp_quantity = bp_quantity - keep_as_cash
         print(f"bp qty:{int(bp_quantity)} qty: {int(quantity)}")
         if (bp_quantity < quantity) and (bp_quantity >= 1):
             quantity = bp_quantity
@@ -801,8 +806,8 @@ while True:
         #     quantity = int(quantity)
   
   
-      
-        trade = True
+        if open:
+          trade = True
         time_to_wait = 47 #@param {type:"slider", min:1, max:60, step:1}
         
         # if (short_market - (limit_price * quantity)) < -investment:
@@ -856,7 +861,7 @@ while True:
         print(f"{abs(((current_qty+quantity) * limit_price))} > {abs(float(account.buying_power))}")
         print(abs(((current_qty+quantity) * limit_price)) > abs(float(account.buying_power)))
         print(f"current: {current_qty} trade qty: {quantity}")
-        if abs(((current_qty+quantity) * limit_price)) > (abs(float(account.last_equity))*margin_times):
+        if abs(((current_qty+quantity) * limit_price)) > (abs(float(account.last_equity) - keep_as_cash) * margin_times):
           print("Setting trade to false because trade > account.buying_power")
           trade = False
   
@@ -868,13 +873,13 @@ while True:
         try:
           market_value = position.market_value
           market_value = float(market_value.replace("'", ''))
-          print(f"position market value: {abs(market_value)} > portfolio value:{portfolio_value}")
+          print(f"position market value: {abs(market_value)} > portfolio value:{(portfolio_value - keep_as_cash) * margin_times}")
         except:
           print("No current positions")
         
         try:
           position = api.get_position(ticker)
-          if (abs(market_value) > portfolio_value) and not margin and not backtesting:
+          if (abs(market_value) > ((portfolio_value - keep_as_cash) * margin_times)) and not backtesting:
             print("Closing all positions because position market value > portfolio value")
             api.close_all_positions()
         except:
@@ -1004,10 +1009,13 @@ while True:
                       filled = False
                       i -= 1
                     else:
-                      print("what the fuck Filled")
+                      print("Filled")
                       filled = True
+                      break
                   else:
-                    raise Exception(e)
+                    if not filled: 
+                      print(f"filled: {filled} i: {i}")
+                      raise Exception("not filled buying power")
                 else:
                   filled = True
               def qty_error(e=e):
@@ -1030,11 +1038,13 @@ while True:
                     print(e)
                     print(e[:36])
                     if e[:25] == "insufficient buying power":
-                      bp_error()
+                      print("Calling bp_error from qty_error")
+                      bp_error(e)
                   else:
                     print("filled")
                     filled = True
                     play_sound("filled")
+                    break
               filled = False
               e = str(e)
               print(e)
@@ -1042,7 +1052,7 @@ while True:
               if e[:36] == "insufficient qty available for order":
                 qty_error()
               elif e[:25] == "insufficient buying power":
-                bp_error()
+                bp_error(e)
             else:
               print("Order filled")
               filled = True
