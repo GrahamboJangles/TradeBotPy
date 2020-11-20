@@ -14,8 +14,10 @@ Yes, there are some lines that could be written better. But I just made this to 
 
 
 # TO DO:
-- if first order was too long ago, it will slow down pi because of live backtesting
+- maybe stop using market orders, seem to be losing quite a bit to slippage depending on volitility
+- redo the wait until open to check the time and wait a specific amount of time until open becuase alpaca just breaks overnight
 - add a test to see if we actually get filled, and if not, try again
+- if first order was too long ago, it will slow down pi because of live backtesting
 - if past market hours and holding positions, close them
 
 ## Low priority:
