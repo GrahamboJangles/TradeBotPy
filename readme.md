@@ -12,7 +12,7 @@ Yes, there are some lines that could be written better. But I just made this to 
 
 - Pull requests welcome.
 
-"""
+
 # TO DO:
 - if first order was too long ago, it will slow down pi because of live backtesting
 - add a test to see if we actually get filled, and if not, try again
@@ -40,7 +40,7 @@ Yes, there are some lines that could be written better. But I just made this to 
 - maybe I shouldn't do extended hours, it doesn't really seem to be worth it
 - additonally, backtest closing positions before market close
 - backtest with 2-4x margin during market hours
-"""
+
 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)]()
 Colab link doesn't work yet
