@@ -1,4 +1,3 @@
-
 #@title Trade Bot { form-width: "25%" }
 
 try:
@@ -17,9 +16,49 @@ base_url = 'https://paper-api.alpaca.markets'
 # instantiate REST API
 api = tradeapi.REST(api_key, api_secret, base_url, api_version='v2')
 
+# Check if the market is open now.
+clock = api.get_clock()
+open = clock.is_open
+print('The market is {}'.format('open.' if open else 'closed.'))
+
 def wait_for_open():
   global open  
   if not open:
+    from datetime import datetime
+    import pytz
+
+    # https://discuss.codecademy.com/t/how-to-convert-to-12-hour-clock/3920/3
+
+    local_tz = pytz.timezone('US/Eastern')
+
+    def utc_to_local(utc_dt):
+        local_dt = utc_dt.replace(tzinfo=pytz.utc).astimezone(local_tz)
+        return local_tz.normalize(local_dt) # .normalize might be unnecessary
+
+    now = datetime.now()
+    #now = utc_to_local(datetime.now())
+    #24-hour format
+    # print(now.strftime('%Y/%m/%d %H:%M:%S'))
+    current_time = now.strftime('%H:%M:%S')
+    #12-hour format
+    curr_datetime = now.strftime('%Y/%m/%d %I:%M:%S %p')
+    # current_time = now.strftime('%I:%M:%S %p')
+    print(curr_datetime)
+    #print(current_time)
+
+    if current_time == "16": #4pm
+      print("Market not open, waiting until next day...")
+      time.sleep(63000)
+    if current_time == "18": # 6pm
+      print("Market not open, waiting until next day...")
+      time.sleep(55800)
+    if current_time == "9":
+      print("Either weekend or holiday, waiting until next day...")
+      time.sleep(63000)
+    if current_time == "9:01":
+      print("Either weekend or holiday, waiting until next day...")
+      time.sleep(63000-60)
+      
     print("Sleeping 1 min because market is closed...")
     time.sleep(60)
     # Check if the market is open now.
@@ -97,8 +136,8 @@ def utc_to_local(utc_dt):
     local_dt = utc_dt.replace(tzinfo=pytz.utc).astimezone(local_tz)
     return local_tz.normalize(local_dt) # .normalize might be unnecessary
  
-# now = datetime.now()
-now = utc_to_local(datetime.now())
+now = datetime.now()
+#now = utc_to_local(datetime.now())
 #24-hour format
 # print(now.strftime('%Y/%m/%d %H:%M:%S'))
 current_time = now.strftime('%H:%M:%S')
@@ -109,18 +148,19 @@ print(curr_datetime)
 #print(current_time)
  
 extended_hours = False
-backtesting = True #@param {type:"boolean"}
+backtesting = False #@param {type:"boolean"}
 
-print(current_time)
-if current_time > "15:45":
+if current_time > "16":
   print("Market not open")
+  open = False
   wait_for_open() 
 if current_time < "18" and current_time > "16": # 18 is 6
   print("During aftermarket hours")
   extended_hours = True
   #open = True
   open = False
-elif (current_time < "16") and (current_time > "09:30 AM"): # 16 is 4
+  wait_for_open()
+elif (current_time < "16") and (current_time > "09:30 AM") and open: # 16 is 4
   print("During market hours")
   extended_hours = False
   open = True
@@ -129,6 +169,7 @@ elif (current_time > "09 AM") and (current_time < "09:30 AM"):
   extended_hours = True
   #open = True
   open = False
+  wait_for_open()
 else:
   open = False
   if not open:
@@ -466,7 +507,7 @@ while True:
             theme='solar', mode='markers+lines',title='Trading bot')
   
         if backtesting:
-          plot_type = "pyplot" #Fparam ["interactive", "pyplot"]
+          plot_type = "pyplot" #@param ["interactive", "pyplot"]
         else:
           plot_type = "pyplot"
         plot(data, type=plot_type)
@@ -511,7 +552,7 @@ while True:
               ticker_data = ticker_data.df
               ticker_data = ticker_data.between_time(time_range_start, time_range_end) 
           else:
-            start = "2020-11-16" #@param {type:"date"}
+            start = "2014-07-01" #@param {type:"date"}
             # start = "2014-01-01T09:30:00-04:00"
             start += "T09:30:00-04:00"
             ticker_data = api.get_barset(ticker, timeframe="1Min", start=start)
@@ -721,23 +762,23 @@ while True:
         print(curr_datetime)
         #print(current_time)
         
-        if current_time == "16":
+        if current_time == "15:57":
           api.close_all_positions()
           print("Sleeping until next day...")
           time.sleep(63000)
           open = False
           if not open:
             wait_for_open()
-        if current_time > "16":
+        if current_time > "15:57":
           api.close_all_positions()
           print("15 min ======================================")
           open = False
-          if not open:
-            wait_for_open()
+          wait_for_open(open = False)
         if current_time < "18" and current_time > "16": # 18 is 6
           print("During aftermarket hours")
           extended_hours = True
-          open = True
+          #open = True
+          open = False
           if not open:
             wait_for_open()
         elif (current_time < "16") and (current_time > "09:30 AM"): # 16 is 4
@@ -763,7 +804,7 @@ while True:
  
         global margin
 
-        if margin and (not current_time > "15:45"):
+        if margin and (not current_time > "15:57"):
           pass
           #portfolio_value = portfolio_value * margin_times
         else:
@@ -1093,24 +1134,22 @@ while True:
               #     # client_order_id=order_id)
             except Exception as e: 
               # check if we get filled, if not try again
-              def check_fill():
+              def check_fill(limit_price=limit_price):
                 while not filled:
                   try:
                     api.get_position(ticker)
                   except:
+                    api.cancel_all_orders() 
                     filled = False
-                    if action=="buy" and (extended_hours):
-                      order(limit_price=limit_price+1)
-                    else:
-                      order(limit_price=limit_price-1)
-                    
-                    if not extended_hours:
+                    if action=="buy":
+                      limit_price = limit_price + 0.01
                       order()
-  
-                    try:
-                      api.get_position(ticker)
-                    except:
-                      filled = False
+                    else:
+                      limit_price = limit_price - 0.01
+                      order()
+                    
+                    #if not extended_hours:
+                      #order()
                   else:
                     print("Filled")
                     filled = True
@@ -1272,6 +1311,7 @@ while True:
         # raise
   
 # TODO:
+# - if current_time == "market open" and api_open == false, wait a day
 # - if first order was too long ago, it will slow down pi
 # - correlation graph of bot performance backtest & profit
 
