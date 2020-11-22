@@ -8,22 +8,24 @@ except:
   import alpaca_trade_api as tradeapi
 
 # authentication and connection details
-api_key = "" #@param{type:"string"}
-api_secret = "" #@param{type:"string"}
+api_key = "PKROSGAJI5Z7TQN6H8XB" #@param{type:"string"}
+api_secret = "CU7wObtinAih8o6hgMu1iCWk0OAwBMfclBF3kxlX" #@param{type:"string"}
 base_url = 'https://paper-api.alpaca.markets'
 # base_url = 'https://data.alpaca.markets'
 
 # instantiate REST API
 api = tradeapi.REST(api_key, api_secret, base_url, api_version='v2')
 
-# Check if the market is open now.
-clock = api.get_clock()
-open = clock.is_open
-print('The market is {}'.format('open.' if open else 'closed.'))
+def api_open_check(api=api):
+  # Check if the market is open now.
+  clock = api.get_clock()
+  open = clock.is_open
+  print('The market is {}'.format('open.' if open else 'closed.'))
+  return open
 
-def wait_for_open():
-  global open  
-  if not open:
+open = api_open_check()
+
+def get_current_datetime():
     from datetime import datetime
     import pytz
 
@@ -45,25 +47,37 @@ def wait_for_open():
     # current_time = now.strftime('%I:%M:%S %p')
     print(curr_datetime)
     #print(current_time)
+    return current_time, curr_datetime
 
-    if current_time == "16": #4pm
-      print("Market not open, waiting until next day...")
-      time.sleep(63000)
-    if current_time == "18": # 6pm
-      print("Market not open, waiting until next day...")
-      time.sleep(55800)
-    if current_time == "9":
-      print("Either weekend or holiday, waiting until next day...")
-      time.sleep(63000)
-    if current_time == "9:01":
-      print("Either weekend or holiday, waiting until next day...")
-      time.sleep(63000-60)
-      
-    print("Sleeping 1 min because market is closed...")
-    time.sleep(60)
-    # Check if the market is open now.
-    clock = api.get_clock()
-    open = clock.is_open
+
+def wait_for_open():
+  global open  
+  if not open:
+    current_time, curr_datetime = get_current_datetime()
+    #current_time = "12:30:00"
+    split_time = str(current_time).split(":")
+    hours = int(split_time[0])
+    minutes = int(split_time[1])
+    seconds = int(split_time[2])
+    #print(hours, minutes, seconds)
+    hours_till_open = (23 - hours) + 9
+    if hours_till_open > 23:
+      hours_till_open = hours_till_open - 24
+    minutes_till_open = (60 - minutes) + 30
+    seconds_till_open = (0 - seconds)
+    #print(hours_till_open, minutes_till_open, seconds_till_open)
+    time_till_open = ((hours_till_open*60)*60) + (minutes_till_open*60) + seconds_till_open 
+    print(f"Waiting {hours_till_open} hours, {minutes_till_open} minutes, and {seconds_till_open} seconds until open.")
+    print(f"Or {time_till_open} seconds until open.")
+    time.sleep(time_till_open)
+
+    open = api_open_check()
+
+    current_time, curr_datetime = get_current_datetime()
+
+    if not open and current_time >= "9" and current_time < "16":
+      print("Must be weekend or holiday, waiting till tommorow...")
+      open = False
   return open
 
 investment = 0.0
@@ -125,28 +139,8 @@ nine = 1604932895 - (41-30)
 four = 1604696400
 six = 1604962802
  
-from datetime import datetime
-import pytz
- 
-# https://discuss.codecademy.com/t/how-to-convert-to-12-hour-clock/3920/3
- 
-local_tz = pytz.timezone('US/Eastern')
- 
-def utc_to_local(utc_dt):
-    local_dt = utc_dt.replace(tzinfo=pytz.utc).astimezone(local_tz)
-    return local_tz.normalize(local_dt) # .normalize might be unnecessary
- 
-now = datetime.now()
-#now = utc_to_local(datetime.now())
-#24-hour format
-# print(now.strftime('%Y/%m/%d %H:%M:%S'))
-current_time = now.strftime('%H:%M:%S')
-#12-hour format
-curr_datetime = now.strftime('%Y/%m/%d %I:%M:%S %p')
-# current_time = now.strftime('%I:%M:%S %p')
-print(curr_datetime)
-#print(current_time)
- 
+current_time, curr_datetime = get_current_datetime()
+
 extended_hours = False
 backtesting = False #@param {type:"boolean"}
 
@@ -161,6 +155,7 @@ if current_time < "18" and current_time > "16": # 18 is 6
   open = False
   wait_for_open()
 elif (current_time < "16") and (current_time > "09:30 AM") and open: # 16 is 4
+  print(f"Open = {open}")
   print("During market hours")
   extended_hours = False
   open = True
@@ -475,6 +470,21 @@ while True:
             balance.plot()
             close.plot()
             plt.ylabel('price')
+            plt.show()
+            
+            list_orders = api.list_orders(status="closed", direction="asc", limit=1)
+            first_order_fill_time = str(list_orders).split("'filled_at': '")
+            first_order_fill_time = str(first_order_fill_time[1]).split("',")
+            first_order_fill_time = first_order_fill_time[0]
+            first_order_fill_time = first_order_fill_time[:10]
+            # portfolio_history = api.get_portfolio_history(timeframe="1Min", date_start=first_order_fill_time)
+            portfolio_history = api.get_portfolio_history(timeframe="1Min", date_start=curr_datetime[10])
+            profit_loss = portfolio_history.profit_loss
+            profit_loss = pd.DataFrame(np.array(profit_loss).reshape(len(profit_loss),1), columns = list("p"))
+            # print(profit_loss)
+            profit_loss.plot()
+            plt.ylabel('profit')
+            plt.xlabel('arbitrary time')
             plt.show()
           if type == "interactive":
             import plotly.offline as pyo
@@ -988,7 +998,7 @@ while True:
           print("Cancelling all orders")
           api.cancel_all_orders()
   
-          def order(extended_hours=extended_hours, action=action, quantity=quantity, ticker=ticker, limit_price=limit_price):
+          def order(type="limit", extended_hours=extended_hours, action=action, quantity=quantity, ticker=ticker, limit_price=limit_price):
             if extended_hours:
               print(f"Extended hours order: {action} {quantity} shares of {ticker} for ~${limit_price}")
               api.submit_order(symbol=ticker, 
@@ -1000,25 +1010,50 @@ while True:
                   limit_price=limit_price)
                   # client_order_id=order_id)
             else:
-              print(f"Order: {action} {quantity} shares of {ticker} for ~${limit_price}")
+              print(f"Limit Order: {action} {quantity} shares of {ticker} for ~${limit_price}")
               api.submit_order(symbol=ticker, 
                   qty=quantity, 
                   side=action, 
                   time_in_force='day', 
-                  type='market')
+                  type='limit',
+                  limit_price=limit_price) 
                   # limit_price=400.00, 
                   # client_order_id=order_id)
+                  
+          def check_fill(limit_price=limit_price, ticker=ticker, action=action):
+            while not filled:
+              if limit_price <= limit_price/2:
+               raise Exception(f"limit price == {limit_price}")
+              try:
+                api.get_position(ticker)
+              except:
+                api.cancel_all_orders() 
+                filled = False
+                if action=="buy":
+                  limit_price = limit_price + 0.01
+                  order()
+                else:
+                  limit_price = limit_price - 0.01
+                  order()
+
+                #if not extended_hours:
+                  #order()
+              else:
+                print("Filled")
+                filled = True
   
           if extended_hours == False:
             try:
               if position.side == "short" and action == "buy":
                 print("Closing all positions to buy")
-                api.close_all_positions()
+                #api.close_all_positions()
+                order()
                 # time.sleep(8) # sleep because it won't let us trade too fast
                 # quantity = quantity * 2
               if position.side == "long" and action == "sell":
                 print("Closing all positions to sell")
-                api.close_all_positions()
+                #api.close_all_positions()
+                order()
                 # time.sleep(8) # sleep because it won't let us trade too fast
                 # quantity = quantity * 2
             except:
@@ -1028,14 +1063,6 @@ while True:
             
             try:
               order()
-              # print(f"Order: {action} {quantity} shares of {ticker} for ~${limit_price}")
-              # api.submit_order(symbol=ticker, 
-              #     qty=quantity, 
-              #     side=action, 
-              #     time_in_force='day', 
-              #     type='market')
-              #     # limit_price=400.00, 
-              #     # client_order_id=order_id)
             except Exception as e: 
               print(f"Buying power: {account.buying_power}")
               def bp_error(e=e):
@@ -1065,6 +1092,7 @@ while True:
                 while not filled:
                   try:
                     order()
+                    check_fill()
                     # print(f"Order: {action} {quantity} shares of {ticker} for ~${limit_price}")
                     # api.submit_order(symbol=ticker, 
                     #     qty=quantity, 
