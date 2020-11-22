@@ -8,8 +8,8 @@ except:
   import alpaca_trade_api as tradeapi
 
 # authentication and connection details
-api_key = "PKROSGAJI5Z7TQN6H8XB" #@param{type:"string"}
-api_secret = "CU7wObtinAih8o6hgMu1iCWk0OAwBMfclBF3kxlX" #@param{type:"string"}
+api_key = "" #@param{type:"string"}
+api_secret = "" #@param{type:"string"}
 base_url = 'https://paper-api.alpaca.markets'
 # base_url = 'https://data.alpaca.markets'
 
