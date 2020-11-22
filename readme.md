@@ -16,12 +16,12 @@ Yes, there are some lines that could be written better. But I just made this to 
 # TO DO:
 - if first order was too long ago, it will slow down pi because of live backtesting
 - if past market hours and holding positions, close them
-- change the wait time until next day to wait for a specific time delta instead of checking every minute
 
 # ALMOST DONE:
 - maybe stop using market orders, seem to be losing quite a bit to slippage depending on volitility
 - add a test to see if we actually get filled, and if not, try again
 - add a graph using Alpaca order data and put it underneath the backtesting graph to compare
+- change the wait time until next day to wait for a specific time delta instead of checking every minute
 
 ## Low priority:
 - correlation graph of bot performance backtest & profit
