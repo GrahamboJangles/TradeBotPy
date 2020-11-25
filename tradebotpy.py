@@ -4,7 +4,7 @@ try:
   import alpaca_trade_api as tradeapi
 except:
   print("Installing alpaca_trade_api")
-  # !pip install alpaca_trade_api --quiet
+  #!pip install alpaca_trade_api --quiet
   import alpaca_trade_api as tradeapi
 
 # authentication and connection details
@@ -25,20 +25,21 @@ def api_open_check(api=api):
 
 open = api_open_check()
 
+from datetime import datetime
+import pytz
+
+# https://discuss.codecademy.com/t/how-to-convert-to-12-hour-clock/3920/3
+
+local_tz = pytz.timezone('US/Eastern')
+
+def utc_to_local(utc_dt):
+    local_dt = utc_dt.replace(tzinfo=pytz.utc).astimezone(local_tz)
+    return local_tz.normalize(local_dt) # .normalize might be unnecessary
+
+now = datetime.now()
+#now = utc_to_local(datetime.now())
+
 def get_current_datetime():
-    from datetime import datetime
-    import pytz
-
-    # https://discuss.codecademy.com/t/how-to-convert-to-12-hour-clock/3920/3
-
-    local_tz = pytz.timezone('US/Eastern')
-
-    def utc_to_local(utc_dt):
-        local_dt = utc_dt.replace(tzinfo=pytz.utc).astimezone(local_tz)
-        return local_tz.normalize(local_dt) # .normalize might be unnecessary
-
-    now = datetime.now()
-    #now = utc_to_local(datetime.now())
     #24-hour format
     # print(now.strftime('%Y/%m/%d %H:%M:%S'))
     current_time = now.strftime('%H:%M:%S')
@@ -51,7 +52,8 @@ def get_current_datetime():
 
 
 def wait_for_open():
-  global open  
+  #global open 
+  open = False
   if not open:
     current_time, curr_datetime = get_current_datetime()
     #current_time = "12:30:00"
@@ -97,7 +99,7 @@ def sendEmail(e=e, portfolio_value=portfolio_value, investment=investment):
   sender_email = email
   receiver_email = email
   subject_text = """\
-  TRADING BOT"""
+  TRADE BOT"""
   message_text = str(e)
   message_text = '\n'
   message_text += str(traceback)
@@ -122,15 +124,15 @@ def sendEmail(e=e, portfolio_value=portfolio_value, investment=investment):
 
 def play_sound(sound):
   print("placeholder function for sound")
-  # # https://stackoverflow.com/a/54295274/8142044
-  # # Play an audio beep. Any audio URL will do.
-  # from google.colab import output
-  # if sound=="filled":
-  #   output.eval_js('new Audio("https://proxy.notificationsounds.com/notification-sounds/eventually-590/download/file-sounds-1137-eventually.ogg").play()')
-  # if sound=="error":
-  #   output.eval_js('new Audio("https://proxy.notificationsounds.com/notification-sounds/point-blank-589/download/file-sounds-1136-point-blank.ogg").play()')
+  # https://stackoverflow.com/a/54295274/8142044
+  # Play an audio beep. Any audio URL will do.
+  #from google.colab import output
+  #if sound=="filled":
+    #output.eval_js('new Audio("https://proxy.notificationsounds.com/notification-sounds/eventually-590/download/file-sounds-1137-eventually.ogg").play()')
+  #if sound=="error":
+    #output.eval_js('new Audio("https://proxy.notificationsounds.com/notification-sounds/point-blank-589/download/file-sounds-1136-point-blank.ogg").play()')
  
-# %tb
+#%tb
 
 import time
 import sys
@@ -478,7 +480,11 @@ while True:
             first_order_fill_time = first_order_fill_time[0]
             first_order_fill_time = first_order_fill_time[:10]
             # portfolio_history = api.get_portfolio_history(timeframe="1Min", date_start=first_order_fill_time)
-            portfolio_history = api.get_portfolio_history(timeframe="1Min", date_start=curr_datetime[10])
+            # current_time, curr_datetime = get_current_datetime()
+            global curr_datetime
+            print(curr_datetime[:10])
+            import numpy as np
+            portfolio_history = api.get_portfolio_history(timeframe="1Min", date_start=str(curr_datetime[:10]).replace("/", "-"), date_end=str(curr_datetime[:10]).replace("/", "-"))
             profit_loss = portfolio_history.profit_loss
             profit_loss = pd.DataFrame(np.array(profit_loss).reshape(len(profit_loss),1), columns = list("p"))
             # print(profit_loss)
@@ -535,10 +541,11 @@ while True:
   
       def get_advice(data, strategy="default"):
         if strategy == "default":
-          #Your strat
+          #your strat
           return stock['advice']
   
       def do_new_data(margin_times=margin_times):  
+        api.cancel_all_orders()
         try:
           ticker_data
         except NameError:
@@ -547,20 +554,20 @@ while True:
   
           # Maybe use after instead of start?
           if not backtesting:
-            try:
+            #try:
               # Getting time of first order
-              list_orders = api.list_orders(status="closed", direction="asc", limit=1)
-              first_order_fill_time = str(list_orders).split("'filled_at': '")
-              first_order_fill_time = str(first_order_fill_time[1]).split("',")
-              first_order_fill_time = first_order_fill_time[0]
+              #list_orders = api.list_orders(status="closed", direction="asc", limit=1)
+              #first_order_fill_time = str(list_orders).split("'filled_at': '")
+              #first_order_fill_time = str(first_order_fill_time[1]).split("',")
+              #first_order_fill_time = first_order_fill_time[0]
     
-              ticker_data = api.get_barset(ticker, timeframe="1Min", start=first_order_fill_time)
-              ticker_data = ticker_data.df
-              ticker_data = ticker_data.between_time(time_range_start, time_range_end) 
-            except:
-              ticker_data = api.get_barset(ticker, timeframe="1Min", limit=100)
-              ticker_data = ticker_data.df
-              ticker_data = ticker_data.between_time(time_range_start, time_range_end) 
+              #ticker_data = api.get_barset(ticker, timeframe="1Min", start=first_order_fill_time)
+              #ticker_data = ticker_data.df
+              #ticker_data = ticker_data.between_time(time_range_start, time_range_end) 
+            #except:
+            ticker_data = api.get_barset(ticker, timeframe="1Min", limit=100)
+            ticker_data = ticker_data.df
+            ticker_data = ticker_data.between_time(time_range_start, time_range_end) 
           else:
             start = "2014-07-01" #@param {type:"date"}
             # start = "2014-01-01T09:30:00-04:00"
@@ -666,7 +673,8 @@ while True:
         portfolio_value = account.portfolio_value
         portfolio_value = float(portfolio_value.replace("'", ''))
         print(f"Current value is: ${portfolio_value}")
-        print(f"Total profit: ${portfolio_value - investment:.2f}")
+        print(f"Today's profit: ${portfolio_value - float(account.last_equity):.2f}")
+        #print(f"Total profit: ${portfolio_value - investment:.2f}")
   
         if backtesting:
           # Was gonna add standard deviation, but it'd be higher if the trade bot makes more money
@@ -783,7 +791,7 @@ while True:
           api.close_all_positions()
           print("15 min ======================================")
           open = False
-          wait_for_open(open = False)
+          wait_for_open()
         if current_time < "18" and current_time > "16": # 18 is 6
           print("During aftermarket hours")
           extended_hours = True
@@ -809,8 +817,8 @@ while True:
             pass
             # raise Exception("Market is closed") 
             # sys.exit("Market is closed")
-          if not open:
-            wait_for_open()
+          # if not open:
+          #   wait_for_open()
  
         global margin
 
@@ -825,13 +833,15 @@ while True:
         #global margin_times
         # quantity = 60 #20
         keep_as_cash = 70000-20000
+        print(f"quantity = {account.last_equity} - {keep_as_cash} * {margin_times} / {limit_price}")
         quantity = ((float(account.last_equity) - keep_as_cash) * margin_times) / limit_price
+        print(f"Quantity = {quantity}")
         #keep_as_cash = 600
         #quantity = quantity - keep_as_cash
         #bp_quantity = float(account.regt_buying_power) / limit_price
         bp_quantity = (float(account.buying_power) - (keep_as_cash)) / limit_price
         #bp_quantity = bp_quantity - keep_as_cash
-        print(f"bp qty:{int(bp_quantity)} qty: {int(quantity)}")
+        print(f"bp qty: {int(bp_quantity)} qty: {int(quantity)}")
         if (bp_quantity < quantity) and (bp_quantity >= 1):
             quantity = bp_quantity
         print(f"Buying power: ${account.buying_power}")
@@ -910,11 +920,12 @@ while True:
           current_qty = 0
   
         print(f"{abs(((current_qty+quantity) * limit_price))} > {abs(float(account.buying_power))}")
-        print(abs(((current_qty+quantity) * limit_price)) > abs(float(account.buying_power)))
+        print(abs(((current_qty+quantity) * limit_price)) > abs(float(account.last_equity)))
         print(f"current: {current_qty} trade qty: {quantity}")
         if abs(((current_qty+quantity) * limit_price)) > (abs(float(account.last_equity) - keep_as_cash) * margin_times):
-          print("Setting trade to false because trade > account.buying_power")
+          print("Setting trade to false because trade > account.last_equity (bp)")
           trade = False
+        else: trade = True
   
         # if abs(((qty+quantity) * limit_price)) > investment:
         #   print("Closing all positions because ")
@@ -924,17 +935,20 @@ while True:
         try:
           market_value = position.market_value
           market_value = float(market_value.replace("'", ''))
-          print(f"position market value: {abs(market_value)} > portfolio value:{(portfolio_value - keep_as_cash) * margin_times}")
+          print(f"position market value: {abs(market_value)} > portfolio value: ${(portfolio_value - keep_as_cash) * margin_times:.2f}")
         except:
           print("No current positions")
-        
         try:
           position = api.get_position(ticker)
-          if (abs(market_value) > ((portfolio_value - keep_as_cash) * margin_times)) and not backtesting:
+          print(f"Market value > usable cash: {abs(market_value)} > ({account.last_equity} - {keep_as_cash}) * {margin_times}")
+          if (abs(market_value) > ((float(account.last_equity) - keep_as_cash) * margin_times)) and not backtesting:
             print("Closing all positions because position market value > portfolio value")
             api.close_all_positions()
-        except:
-          pass
+            #correction = ((abs(market_value) - ((float(account.last_equity) - keep_as_cash) * margin_times))) / limit_price
+            #order()
+            #filled = check_fill(to_close=True, limit_price=limit_price)
+        except Exception as e:
+          print(e)
   
         # Check if the market is open now.
         clock = api.get_clock()
@@ -949,7 +963,7 @@ while True:
   
         # print(f"ext hours: {extended_hours}")
         print(f"trade: {trade}")
-  
+      
         # Check when the market was open on Dec. 1, 2018
         from datetime import datetime
         todays_date = datetime.today().strftime('%Y-%m-%d')
@@ -1000,7 +1014,7 @@ while True:
   
           def order(type="limit", extended_hours=extended_hours, action=action, quantity=quantity, ticker=ticker, limit_price=limit_price):
             if extended_hours:
-              print(f"Extended hours order: {action} {quantity} shares of {ticker} for ~${limit_price}")
+              print(f"Extended limit order: {action} {quantity} shares of {ticker} for ~${limit_price}. Total: ~${limit_price*quantity:.2f}")
               api.submit_order(symbol=ticker, 
                   qty=quantity, 
                   side=action, 
@@ -1010,7 +1024,7 @@ while True:
                   limit_price=limit_price)
                   # client_order_id=order_id)
             else:
-              print(f"Limit Order: {action} {quantity} shares of {ticker} for ~${limit_price}")
+              print(f"{type} order: {action} {quantity} shares of {ticker} for ~${limit_price}. Total: ~${(limit_price*quantity):.2f}")
               api.submit_order(symbol=ticker, 
                   qty=quantity, 
                   side=action, 
@@ -1020,50 +1034,119 @@ while True:
                   # limit_price=400.00, 
                   # client_order_id=order_id)
                   
-          def check_fill(limit_price=limit_price, ticker=ticker, action=action):
-            while not filled:
-              if limit_price <= limit_price/2:
-               raise Exception(f"limit price == {limit_price}")
+          def check_fill(to_close=False, limit_price=limit_price, ticker=ticker, action=action):
+            print("In check fill")
+            filled = False
+            if not to_close:
+              while not filled:
+                if limit_price <= limit_price/2:
+                  raise Exception(f"limit price == {limit_price}")
+                try:
+                  print("Getting positions")
+                  api.get_position(ticker)
+                except:
+                  print("No current positions")
+                  print("Check fill cancelling orders...")
+                  api.cancel_all_orders() 
+                  filled = False
+                  print(f"Filled = {filled}")
+                  print("Not filled, so changing limit...")
+                  if action=="buy":
+                    print("Raising limit price to buy...")
+                    limit_price = limit_price + 0.01
+                    try:
+                      print("Ordering after raising limit price to buy")
+                      #filled = check_fill(limit_price=limit_price)
+                      order(limit_price=limit_price)
+                      print("and then checking fill of buy")
+                      filled = check_fill(limit_price=limit_price)
+                    except Exception as e:
+                      print(e)
+             
+                  else:
+                    print("Lowering limit price to sell...")
+                    limit_price = limit_price - 0.01
+                    try:
+                      print("Ordering after lowering limit price to sell")
+                      #filled = check_fill(limit_price=limit_price)
+                      order(limit_price=limit_price)
+                      print("and then checking fill")
+                      filled = check_fill(limit_price=limit_price)
+                    except Exception as e:
+                      print(e)
+
+                  #if not extended_hours:
+                    #order()
+                else:
+                  print("Filled")
+                  filled = True
+                  return filled
+              return filled
+            else:
+              print("Check fill to_close")
               try:
+                print("Getting positions")
                 api.get_position(ticker)
               except:
-                api.cancel_all_orders() 
-                filled = False
-                if action=="buy":
-                  limit_price = limit_price + 0.01
-                  order()
-                else:
-                  limit_price = limit_price - 0.01
-                  order()
-
-                #if not extended_hours:
-                  #order()
-              else:
-                print("Filled")
+                print("No positions")
                 filled = True
-  
+                return filled
+              else: 
+                filled = False
+                api.cancel_all_orders()
+                if action=="buy":
+                  print("Raising limit price to buy...")
+                  limit_price = limit_price + 0.01
+                  print("Order after raising limit price to buy to close")
+                  order(limit_price=limit_price)
+                  filled = check_fill(to_close=True, limit_price=limit_price)
+                  print(f"Filled: {filled}")
+                else:
+                  print("Lowering limit price to sell")
+                  limit_price = limit_price - 0.01
+                  print("Order after lowering limit price to sell to close")
+                  order(limit_price=limit_price)
+                  filled = check_fill(to_close=True, limit_price=limit_price)
+                  print(f"Filled: {filled}")
+                  
           if extended_hours == False:
             try:
+              api.get_position(ticker)
+              print(f"============Position side: {position.side}")
               if position.side == "short" and action == "buy":
                 print("Closing all positions to buy")
                 #api.close_all_positions()
-                order()
+                try:
+                  print("Ordering")
+                  order()
+                  print("CHecking fill")
+                  filled = check_fill(to_close=True)
+                  print(f"Filled: {filled}")
+                except Exception as e:
+                  e = str(e)
+                  print(e)
                 # time.sleep(8) # sleep because it won't let us trade too fast
                 # quantity = quantity * 2
               if position.side == "long" and action == "sell":
                 print("Closing all positions to sell")
                 #api.close_all_positions()
-                order()
-                # time.sleep(8) # sleep because it won't let us trade too fast
-                # quantity = quantity * 2
-            except:
-              print("No current positions")
-  
+                try:
+                  print("Ordering")
+                  order()
+                  filled = check_fill(to_close=True)
+                  print(f"Filled: {filled}")
+                except Exception as e:
+                  e = str(e)
+                  print(e)
+            except Exception as e:
+              print(e)
             # https://algotrading101.com/learn/alpaca-trading-api-guide/
             
             try:
               order()
-            except Exception as e: 
+              filled = check_fill()
+              print(f"Filled: {filled}")
+            except Exception as e:
               print(f"Buying power: {account.buying_power}")
               def bp_error(e=e):
                 i = quantity - 1
@@ -1071,7 +1154,10 @@ while True:
                 while not filled:
                   while i > 0:
                     try:
+                      print(f"======================i = {i}")
                       order(quantity=i)
+                      filled = check_fill()
+                      print(f"Filled: {filled}")
                     except Exception as e:
                       print(e)
                       filled = False
@@ -1079,52 +1165,52 @@ while True:
                     else:
                       print("Filled")
                       filled = True
+                      return filled
                       break
                   else:
                     if not filled: 
-                      print(f"filled: {filled} i: {i}")
-                      raise Exception("not filled buying power")
+                      raise Exception(f"filled: {filled} i: {i}")
                 else:
                   filled = True
               def qty_error(e=e):
                 print("Not filled")
                 filled = False
+                i = quantity
                 while not filled:
-                  try:
-                    order()
-                    check_fill()
-                    # print(f"Order: {action} {quantity} shares of {ticker} for ~${limit_price}")
-                    # api.submit_order(symbol=ticker, 
-                    #     qty=quantity, 
-                    #     side=action, 
-                    #     time_in_force='day', 
-                    #     type='market')
-                    #     # limit_price=400.00, 
-                    #     # client_order_id=order_id)
-                  except Exception as e:
-                    filled = False
-                    e = str(e)
-                    print(e)
-                    print(e[:36])
-                    if e[:25] == "insufficient buying power":
-                      print("Calling bp_error from qty_error")
-                      bp_error(e)
-                  else:
-                    print("filled")
-                    filled = True
-                    play_sound("filled")
-                    break
+                  while i > 0:
+                    i -= 1
+                    print(f"=-=-=-=-==-=-=- i = {i}")
+                    try:
+                      order(quantity=i)
+                      print("CHECKING FILL ==============")
+                      filled = check_fill()
+                      print(f"Filled: {filled}")
+                    except Exception as e:
+                      filled = False
+                      e = str(e)
+                      print(e)
+                      print(e[:36])
+                      if e[:25] == "insufficient buying power":
+                        print("Calling bp_error from qty_error")
+                        bp_error(e)
+                    else:
+                      print("filled")
+                      filled = True
+                      play_sound("filled")
+                      return filled
+                      break
+                  else: 
+                    raise Exception(f"i = {i}")
               filled = False
               e = str(e)
               print(e)
               print(e[:36])
               if e[:36] == "insufficient qty available for order":
-                qty_error()
+                qty_error(e)
               elif e[:25] == "insufficient buying power":
                 bp_error(e)
             else:
-              print("Order filled")
-              filled = True
+              print("Order sent")
               play_sound("filled")
           else:
             print("ext hours")
@@ -1138,6 +1224,8 @@ while True:
               limit_price +=1
   
             try:
+              api.get_position(ticker)
+              print(f"Positions side: {position.side}")
               if position.side == "short" and action == "buy":
                 print("Closing all positions to buy")
                 time.sleep(10) # sleep because it won't let us trade too fast
@@ -1151,15 +1239,8 @@ while True:
   
             try:
               order()
-              # print(f"Extended hours order: {action} {quantity} shares of {ticker} for ~${limit_price}")
-              # api.submit_order(symbol=ticker, 
-              #     qty=quantity, 
-              #     side=action, 
-              #     time_in_force='day', 
-              #     extended_hours= extended_hours,
-              #     type='limit',
-              #     limit_price=limit_price)
-              #     # client_order_id=order_id)
+              filled = check_fill()
+              print(f"Filled: {filled}")
             except Exception as e: 
               # check if we get filled, if not try again
               def check_fill(limit_price=limit_price):
@@ -1295,7 +1376,13 @@ while True:
     # on exit 
     # https://stackoverflow.com/a/3850293/8142044
     # except KeyboardInterrupt:
-    except Exception as e: 
+    except ConnectionResetError:
+      pass
+    except Exception as e:
+      print(e)
+      e = str(e)
+      if e[:31] == "failed to validate Bearer token":
+        pass 
       # clean up
       print("Closing positions...")
       api.close_all_positions()
@@ -1305,7 +1392,7 @@ while True:
       portfolio_value = account.portfolio_value
       portfolio_value = float(portfolio_value.replace("'", ''))
       print(f"Current value is: ${portfolio_value}")
-      print(f"Total profit: ${portfolio_value - investment:.2f}")
+      print(f"Today's profit: ${portfolio_value - investment:.2f}")
   
       # print(f"{ticker} performance since first trade: ${buy_and_hold:.2f}")
       try:
