@@ -26,7 +26,6 @@ Yes, there are some lines that could be written better. But I just made this to 
  
 # KIND OF DONE:
 - might need to add something to check if this has already been run because it appends over and over if i run it multiple times
-- redo the wait until open to check the time and wait a specific amount of time until open becuase alpaca just breaks overnight
  
 # DONE:
 - get rid of HOLD, and just replace with previous action
@@ -44,6 +43,7 @@ Yes, there are some lines that could be written better. But I just made this to 
 - add a test to see if we actually get filled, and if not, try again
 - add a graph using Alpaca order data and put it underneath the backtesting graph to compare
 - change the wait time until next day to wait for a specific time delta instead of checking every minute
+
 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)]()
 Colab link doesn't work yet
