@@ -16,6 +16,7 @@ Yes, there are some lines that could be written better. But I just made this to 
 # TO DO:
 - if first order was too long ago, it will slow down pi because of live backtesting
 - if past market hours and holding positions, close them
+- going from short to long makes the bot buy too much
 
 ## Low priority:
 - correlation graph of bot performance backtest & profit
