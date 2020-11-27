@@ -55,6 +55,7 @@ def wait_for_open():
   #global open 
   open = False
   if not open:
+    print("Getting current time...")
     current_time, curr_datetime = get_current_datetime()
     #current_time = "12:30:00"
     split_time = str(current_time).split(":")
@@ -74,7 +75,7 @@ def wait_for_open():
     time.sleep(time_till_open)
 
     open = api_open_check()
-
+    print("Getting current time")
     current_time, curr_datetime = get_current_datetime()
 
     if not open and current_time >= "9" and current_time < "16":
@@ -199,8 +200,8 @@ ticker = "SPY" #@param {type:"string"}
 # backtest_start_date = "2020-01-01"
  
 #investment = 25000 #@param {type:"integer"}
-margin = True #@param {type:"boolean"}
-margin_times = 4 #@param {type:"number"}
+margin = False #@param {type:"boolean"}
+margin_times = 1 #@param {type:"number"}
  
 # obtain account information
 account = api.get_account()
@@ -283,7 +284,7 @@ while True:
   
         # for i in range(1, len(close)):
         #   #last[i] = stock.loc[stock.index[i], 'close']
-        #   last[i] = close[i - 1]
+        #   last[i] = close[i - 1] 
   
         # if (stock.loc[stock.index[count], 'advice'] == "SELL"):
         #   balance = stock.loc[stock.index[count], 'Balance']
@@ -541,7 +542,7 @@ while True:
   
       def get_advice(data, strategy="default"):
         if strategy == "default":
-          #your strat
+          # your strat
           return stock['advice']
   
       def do_new_data(margin_times=margin_times):  
@@ -832,7 +833,7 @@ while True:
         #margin_times = 4  
         #global margin_times
         # quantity = 60 #20
-        keep_as_cash = 70000-20000
+        keep_as_cash = investment - 70300
         print(f"quantity = {account.last_equity} - {keep_as_cash} * {margin_times} / {limit_price}")
         quantity = ((float(account.last_equity) - keep_as_cash) * margin_times) / limit_price
         print(f"Quantity = {quantity}")
