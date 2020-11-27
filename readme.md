@@ -17,6 +17,8 @@ Yes, there are some lines that could be written better. But I just made this to 
 - if first order was too long ago, it will slow down pi because of live backtesting
 - if past market hours and holding positions, close them
 - going from short to long makes the bot buy too much, but is corrected shortly. not a huge problem but should fix
+- add loading bar for waiting until open
+- change the closing all positions because of using too much cash to correct to the amount of shares that we want instead of closing out
 
 ## Low priority:
 - correlation graph of bot performance backtest & profit
