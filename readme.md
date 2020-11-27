@@ -16,16 +16,15 @@ Yes, there are some lines that could be written better. But I just made this to 
 # TO DO:
 - if first order was too long ago, it will slow down pi because of live backtesting
 - if past market hours and holding positions, close them
+- sometimes the market closes early on holiday's, should change the close early to a variable using API close times
 - going from short to long makes the bot buy too much, but is corrected shortly. not a huge problem but should fix
-- add loading bar for waiting until open
-- change the closing all positions because of using too much cash to correct to the amount of shares that we want instead of closing out
 
 ## Low priority:
 - correlation graph of bot performance backtest & profit
 - add some additional statistical analysis to the backtesting (STD, # of days up/# of days down)
 - maybe add a debugging mode to print stuff
-- backtest AMZN with no shorting
-- maybe for ext market limit order, gradually increase limit_order difference if not filled
+- backtest AMZN ext market limit order, gradually increase limit_order difference if not filled with no shorting
+- maybe for
  
 # KIND OF DONE:
 - might need to add something to check if this has already been run because it appends over and over if i run it multiple times
@@ -46,6 +45,8 @@ Yes, there are some lines that could be written better. But I just made this to 
 - add a test to see if we actually get filled, and if not, try again
 - add a graph using Alpaca order data and put it underneath the backtesting graph to compare
 - change the wait time until next day to wait for a specific time delta instead of checking every minute
+- change the closing all positions because of using too much cash to correct to the amount of shares that we want instead of closing out
+- add loading bar for waiting until open
 
 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)]()
