@@ -15,8 +15,10 @@ Yes, there are some lines that could be written better. But I just made this to 
 
 
 # TO DO:
-- if first order was too long ago, it will slow down pi because of live backtesting
+- limit the amount of data downloaded during live trading, right now it downloads all data since first trade but that will slow down the script over time
 - if past market hours and holding positions, close them
+
+### maybe fixed
 - going from short to long makes the bot buy too much, but is corrected shortly. not a huge problem but should fix
 
 ## Low priority:
