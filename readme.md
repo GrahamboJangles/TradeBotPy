@@ -1,4 +1,5 @@
 Yes, there are some lines that could be written better. But I just made this to work. And it does... For the most part.
+- Uses Alpaca
 
 - Is lite enough to run on a Raspberry Pi Zero.
 
@@ -16,7 +17,6 @@ Yes, there are some lines that could be written better. But I just made this to 
 # TO DO:
 - if first order was too long ago, it will slow down pi because of live backtesting
 - if past market hours and holding positions, close them
-- sometimes the market closes early on holiday's, should change the close early to a variable using API close times
 - going from short to long makes the bot buy too much, but is corrected shortly. not a huge problem but should fix
 
 ## Low priority:
@@ -47,6 +47,7 @@ Yes, there are some lines that could be written better. But I just made this to 
 - change the wait time until next day to wait for a specific time delta instead of checking every minute
 - change the closing all positions because of using too much cash to correct to the amount of shares that we want instead of closing out
 - add loading bar for waiting until open
+- sometimes the market closes early on holiday's, should change the close early to a variable using API close times
 
 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)]()
