@@ -1,0 +1,7 @@
+tqdm
+stockstats
+alpaca_trade_api
+pytz
+matplotlib
+pandas
+numpy
