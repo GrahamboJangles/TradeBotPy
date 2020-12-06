@@ -28,26 +28,30 @@ api = tradeapi.REST(api_key, api_secret, base_url, api_version='v2')
 
 # Debugging
 
-debug = True
-verbose = True
+debug = True #@param{type:"boolean"}
+verbose = True #@param{type:"boolean"}
 # Debugging - set a custom test time
 if debug:
   current_time = "09:30:00"
 
-backtesting = True
+backtesting = False #@param{type:"boolean"}
   
 ticker = "SPY"
 investment = 21000
 margin_times = 1
-shorting = True
+shorting = True #@param{type:"boolean"}
 
-trade_ext_hours = False
+trade_ext_hours = False #@param{type:"boolean"}
 
 start_date = "automatic"
 end_date = "automatic"
 
 start_time = "9:30"
 end_time = "16:00" # 4 p.m.
+
+# Initialize
+e = ""
+portfolio_value = None
 
 def check_if_open(api=api):
   # Check when the market opens/closes
@@ -414,27 +418,28 @@ def get_advice(data, strategy="default"):
 
     return advice, last_advice
 
+def get_positions():
+  try:
+    positions = api.get_position(ticker)
+    qty = int(positions.qty)
+    market_value = float(positions.market_value)
+    side = positions.side
+    if side == "short":
+      side = "sell"
+    else:
+      side = "buy"
+  except Exception as e:
+    positions = None
+    qty = 0
+    market_value = 0
+    side = None
+    print(e)
+  return positions, qty, market_value, side
+account = api.get_account()
 def order(last_advice, e=""):
   # input("-2")
   filled = False
   while not filled:
-    def get_positions():
-      try:
-        positions = api.get_position(ticker)
-        qty = int(positions.qty)
-        market_value = float(positions.market_value)
-        side = positions.side
-        if side == "short":
-          side = "sell"
-        else:
-          side = "buy"
-      except Exception as e:
-        positions = None
-        qty = 0
-        market_value = 0
-        side = None
-        print(e)
-      return positions, qty, market_value, side
     # input("-1")
     current_positions, current_qty, current_market_value, current_side = get_positions()
     print(f"Current quantity: {current_qty}")
@@ -447,7 +452,7 @@ def order(last_advice, e=""):
       close_prices = market_data['close']
       last_close = close_prices[-1]
       limit_price = last_close
-      account = api.get_account()
+      global account
       last_equity = float(account.last_equity)
       if e == "insufficient buying power":
         buying_power = float(account.regt_buying_power)
@@ -578,7 +583,7 @@ def order(last_advice, e=""):
         e = str(e)
         if "insufficient buying power" in e:
           order(last_advice, e="insufficient buying power")
-
+    fuck
     send_order(limit_price, quantity, last_advice)
 
     def check_fill():
@@ -627,6 +632,52 @@ def order(last_advice, e=""):
       # input("8")
       get_filled()
 
+def send_email(error, e=e):
+  print("Sending email...")
+  import traceback
+  traceback = traceback.format_exc()
+  import smtplib, ssl
+
+
+  email = "" #@param {type:"string"}
+  password = '' #@param {type:"string"}
+
+  port = 587  # For starttls
+  smtp_server = "smtp.gmail.com"
+  sender_email = email
+  receiver_email = email
+  subject_text = """\
+  TRADE BOT"""
+  message_text = str(e)
+  message_text = '\n'
+  message_text += str(traceback)
+  try:
+    message_text += str(error)
+  except:
+    pass
+  message_text += '\n'
+  try: 
+    message_text += positions
+  except Exception as e:
+    print(e)
+  positions, qty, market_value, side = get_positions()
+  message_text += str(positions)
+  portfolio_value = float(account.portfolio_value)
+  message_text += f"Current value is: ${portfolio_value}"
+  message_text += '\n'
+  message_text += f"Total profit: ${portfolio_value - investment:.2f}"
+  last_equity = float(account.last_equity)
+  message_text += '\n'
+  message_text += f"Today's profit: ${last_equity - portfolio_value}"
+  message = 'Subject: %s\n%s' % (subject_text, message_text)
+  context = ssl.create_default_context()
+  with smtplib.SMTP(smtp_server, port) as server:
+      server.ehlo()  # Can be omitted
+      server.starttls(context=context)
+      server.ehlo()  # Can be omitted
+      server.login(sender_email, password)
+      server.sendmail(sender_email, receiver_email, message)
+
 def play_sound(sound):
   # print("placeholder function for sound")
   # https://stackoverflow.com/a/54295274/8142044
@@ -671,4 +722,5 @@ try:
   else:
     open = wait_for_open()
 except Exception as e:
+  send_email(error=e)
   raise(e)
