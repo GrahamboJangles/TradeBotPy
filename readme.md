@@ -23,7 +23,7 @@ Yes, there are some lines that could be written better. But I just made this to 
 
 
 ### maybe fixed
-- going from short to long makes the bot buy too much, but is corrected shortly. not a huge problem but should fix
+- going from short to long makes the bot buy too much, but is corrected automatically. not a huge problem but should fix
 
 ## Low priority:
 - correlation graph of bot performance backtest & profit
