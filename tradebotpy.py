@@ -28,7 +28,7 @@ api = tradeapi.REST(api_key, api_secret, base_url, api_version='v2')
 
 # Debugging
 
-debug = True #@param{type:"boolean"}
+debug = False #@param{type:"boolean"}
 verbose = True #@param{type:"boolean"}
 # Debugging - set a custom test time
 if debug:
@@ -583,7 +583,7 @@ def order(last_advice, e=""):
         e = str(e)
         if "insufficient buying power" in e:
           order(last_advice, e="insufficient buying power")
-    fuck
+
     send_order(limit_price, quantity, last_advice)
 
     def check_fill():
