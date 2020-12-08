@@ -1,3 +1,5 @@
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/gist/GrahamboJangles/8cbe716adeb7f091a1832dac9a86a4c9/forms-snippets.ipynb)
+
 Yes, there are some lines that could be written better. But I just made this to work. And it does... For the most part.
 - Uses Alpaca
 
@@ -54,7 +56,3 @@ Yes, there are some lines that could be written better. But I just made this to 
 - change the closing all positions because of using too much cash to correct to the amount of shares that we want instead of closing out
 - add loading bar for waiting until open
 - sometimes the market closes early on holiday's, should change the close early to a variable using API close times
-
-
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/gist/GrahamboJangles/8cbe716adeb7f091a1832dac9a86a4c9/forms-snippets.ipynb)
-Colab link doesn't work yet
