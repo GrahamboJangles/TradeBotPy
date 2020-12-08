@@ -7,7 +7,7 @@ try:
   import alpaca_trade_api as tradeapi
 except:
   print("Installing alpaca_trade_api")
-  !pip install alpaca_trade_api --quiet
+  #!pip install alpaca_trade_api --quiet
   import alpaca_trade_api as tradeapi
 
 import pandas as pd
@@ -41,7 +41,7 @@ investment = 21000
 margin_times = 1
 shorting = True #@param{type:"boolean"}
 
-trade_ext_hours = False #@param{type:"boolean"}
+trade_ext_hours = True #@param{type:"boolean"}
 
 start_date = "automatic"
 end_date = "automatic"
@@ -52,6 +52,19 @@ end_time = "16:00" # 4 p.m.
 # Initialize
 e = ""
 portfolio_value = None
+
+def get_current_datetime():
+  global now
+
+  #24-hour format
+  # print(now.strftime('%Y/%m/%d %H:%M:%S'))
+  current_time = now.strftime('%H:%M:%S')
+  #12-hour format
+  curr_datetime = now.strftime('%Y/%m/%d %I:%M:%S %p')
+  # current_time = now.strftime('%I:%M:%S %p')
+  print(curr_datetime)
+  #print(current_time)
+  return current_time, curr_datetime
 
 def check_if_open(api=api):
   # Check when the market opens/closes
@@ -72,7 +85,17 @@ def check_if_open(api=api):
 
   if debug:
     open = True
-  return open, calendar.open, calendar.close, date
+
+  if trade_ext_hours:
+    current_time, curr_datetime = get_current_datetime()
+    if (current_time > "16") and (current_time < "18"):
+      open = True
+      ext_hours = True
+    else:
+      open = False
+      ext_hours = False
+
+  return open, calendar.open, calendar.close, date, ext_hours
 
 # https://discuss.codecademy.com/t/how-to-convert-to-12-hour-clock/3920/3
 
@@ -84,21 +107,8 @@ def utc_to_local(utc_dt):
     local_dt = utc_dt.replace(tzinfo=pytz.utc).astimezone(local_tz)
     return local_tz.normalize(local_dt) # .normalize might be unnecessary
 
-# now = datetime.now()
-now = utc_to_local(datetime.now())
-
-def get_current_datetime():
-  global now
-
-  #24-hour format
-  # print(now.strftime('%Y/%m/%d %H:%M:%S'))
-  current_time = now.strftime('%H:%M:%S')
-  #12-hour format
-  curr_datetime = now.strftime('%Y/%m/%d %I:%M:%S %p')
-  # current_time = now.strftime('%I:%M:%S %p')
-  print(curr_datetime)
-  #print(current_time)
-  return current_time, curr_datetime
+now = datetime.now()
+# now = utc_to_local(datetime.now())
 
 def wait_for_open():
   #global open 
@@ -128,14 +138,15 @@ def wait_for_open():
     for i in trange(time_till_open):
       time.sleep(1-.01)
 
-    open, open_time, close_time, todays_date = check_if_open()
+    open, open_time, close_time, todays_date, ext_hours = check_if_open()
+    
     print("Getting current time")
     current_time, curr_datetime = get_current_datetime()
 
     if not open and current_time >= "9" and current_time < "16":
       print("Must be weekend or holiday, waiting till tommorow...")
       open = False
-  return open
+  return open, ext_hours
 
 def get_market_data():
   if not backtesting:
@@ -413,12 +424,16 @@ def add_calculations(data, advice, margin_times=margin_times):
 def get_advice(data, strategy="default"):
   if strategy == "default":
     df = data
-
-    #your strat here
+#your strat here
 
     return advice, last_advice
 
+def cancel_all_orders():
+  print("Cancelling all orders...")
+  api.cancel_all_orders()
+
 def get_positions():
+  #cancel_all_orders()
   try:
     positions = api.get_position(ticker)
     qty = int(positions.qty)
@@ -464,7 +479,7 @@ def order(last_advice, e=""):
       buying_power = buying_power - current_market_value
       keep_as_cash = last_equity - investment
       useable_cash = last_equity - keep_as_cash
-      quantity = int(useable_cash / limit_price)
+      target_qty = int(useable_cash / limit_price)
 
       if verbose:
         print(f"Last equity: ${last_equity}")
@@ -472,12 +487,12 @@ def order(last_advice, e=""):
         print(f"Keep as cash: ${keep_as_cash}")
         print(f"Useable cash: ${useable_cash}")
         print(f"Limit price: ${limit_price}")
-        print(f"Quantity: {quantity}")
+        print(f"Target Qty: {target_qty}")
 
-      return limit_price, quantity, buying_power, useable_cash
+      return limit_price, target_qty, buying_power, useable_cash
     # input("0")
-    limit_price, quantity, buying_power, useable_cash = define_order(e)
-
+    limit_price, target_qty, buying_power, useable_cash = define_order(e)
+    quantity = target_qty
     future_buying_power = useable_cash - (limit_price * quantity)
 
     if future_buying_power < 0:
@@ -488,33 +503,19 @@ def order(last_advice, e=""):
       print(f"Skipping because buying power is {buying_power}")
       return
 
-    try:
-      # input("1")
-      if (current_side == last_advice) and (current_qty == quantity):
-        # input("2")
-        print(f"Skipping order because current_positions.side and current_qty are the same")
-        return
-      elif current_qty != quantity:
-        # input("3")
-        print("Getting quantity delta")
-        # if (current_side == "sell" and current_qty < 0) and 
-        quantity = abs(quantity) - abs(current_qty)
-        print(f"Quantity: {quantity}")
-    except Exception as e:
-      print(e)
-      pass
     # input("4")
 
     # if quantity < 1:
     #   print(f"Skipping order because quantity {quantity} < 1")
     #   return
-
+    
     if quantity < 1 and last_advice == "buy":
+      print(f"Setting quantity = current_qty because quantity {quantity} < 1 and last_advice is {last_advice}")
       quantity = current_qty
 
     try:
       if (last_advice == "hold") and (current_side == last_advice):
-          print(f"Skipping order because last_advice == {last_advice} and is == {current_positions.side}")
+          print(f"Skipping order because last_advice == {last_advice} and is == {current_side}")
           return
     except: pass
 
@@ -531,7 +532,7 @@ def order(last_advice, e=""):
 
     try:
       print(f"Current side: {current_side}, last advice: {last_advice}")
-      print(f"Quantity: {quantity}, current qty: {current_qty}")
+      print(f"current qty: {current_qty}, Quantity: {quantity}")
       if current_side != None:
 
         if (current_side != last_advice) and (quantity > current_qty):
@@ -540,39 +541,47 @@ def order(last_advice, e=""):
           print(f"Quantity: {quantity}")
     except Exception as e:
       print(e)
-
+    global ext_hours
+    
     # input("5")
     if trade_ext_hours == False:
       if debug:
-        print("Setting extended_hours to false")
-      extended_hours = False
+        print("Setting ext_hours to false")
+      ext_hours = False
 
     # Debugging
     # last_advice = "sell"
     # quantity = 56
     # send_order(limit_price, quantity, last_advice)
-
-    def send_order(limit_price, quantity, last_advice, type="limit"):
-      api.cancel_all_orders()
+    
+    def send_order(limit_price, quantity, side, ext_hours, type="limit"):
+      cancel_all_orders()
       quantity = abs(quantity)
+      print(f"Quantity: {quantity}")
+      print(f"Side: {side}, Last advice: {last_advice}")
+
+      ''' Maybe put a check for positions, and if not in positions then trade? ''' 
+      if quantity < 1:
+        filled = True
+        return filled
       if debug:
         print("Sending order")
       try:
-        if extended_hours:
-          print(f"Extended limit order: {last_advice} {quantity} shares of {ticker} for ~${limit_price}. Total: ~${limit_price*quantity:.2f}")
+        if ext_hours:
+          print(f"Extended limit order: {side} {quantity} shares of {ticker} for ~${limit_price}. Total: ~${limit_price*quantity:.2f}")
           api.submit_order(symbol=ticker,
               qty=abs(quantity),
-              side=last_advice,
+              side=side,
               time_in_force='day',
-              extended_hours= extended_hours,
+              extended_hours= ext_hours,
               type='limit',
               limit_price=limit_price)
               # client_order_id=order_id)
         else:
-          print(f"{type} order: {last_advice} {quantity} shares of {ticker} for ~${limit_price}. Total: ~${(limit_price*quantity):.2f}")
+          print(f"{type} order: {side} {quantity} shares of {ticker} for ~${limit_price}. Total: ~${(limit_price*quantity):.2f}")
           api.submit_order(symbol=ticker,
               qty=abs(quantity),
-              side=last_advice,
+              side=side,
               time_in_force='day',
               type='limit',
               limit_price=limit_price)
@@ -583,46 +592,140 @@ def order(last_advice, e=""):
         e = str(e)
         if "insufficient buying power" in e:
           order(last_advice, e="insufficient buying power")
+    current_positions, current_qty, current_market_value, current_side = get_positions()
+    def qty_delta(current_qty, quantity, current_side, last_advice, limit_price, side, ext_hours):
+      #elif current_qty != quantity:
+        ## input("3")
+        #print("Getting quantity delta")
+        ## if (current_side == "sell" and current_qty < 0) and
+        #quantity_delta = current_qty - quantity
+        #print(f"Quantity detla: {quantity_delta}")
+        #if quantity_delta
+        #send_order(limit_price, quantity=quantity_delta, last_advice)
+      #if abs(current_qty) != abs(quantity):
+        #if (current_qty > quantity) or (current_qty < quantity):
+          #print("Getting quantity delta")
+          #quantity_delta = current_qty - (quantity)
+          #if quantity_delta > 0:
+            #side = "sell"
+          #if quantity_delta < 0:
+            #side = "buy"
+          #send_order(limit_price, quantity=quantity_delta, side=side)
 
-    send_order(limit_price, quantity, last_advice)
+      if abs(current_qty) != abs(quantity):
+          if (current_qty > quantity) or (current_qty < quantity):
+            if current_side == last_advice:
+              if last_advice == "sell":
+                side = "buy"
+              else:
+                side = "sell"
+            else:
+              side = last_advice
+            print("Sending order to fix quantity delta")
+            if current_qty == 0:
+              side = last_advice
+            if current_qty > quantity:
+              quantity_delta = abs(current_qty) - abs(quantity)
+              side = "sell"
+            if current_qty < quantity:
+              quantity_delta = abs(quantity) - abs(current_qty)
+              side = "buy"
+              #if current_side == last_advice:
+                #side = last_advice
+              #else:
+                #side = current_side
+            print(f"What the fuck {quantity_delta} qty_delta")
+            if quantity_delta == 0 or (quantity_delta == quantity):
+              print(f"Quantity delta is {quantity_delta}, so setting quantity delta to quantity {quantity}")
+              quantity_delta = quantity
+            print(f"Quantity delta: {quantity_delta}")
+            print(f"Last advice: {last_advice}")
+            print(f"Side: {side}")
+           
+            send_order(limit_price, quantity=quantity_delta, side=side, ext_hours=ext_hours)
+      else: 
+        side = last_advice
+        quantity_delta = 0
+      return side, quantity_delta
 
-    def check_fill():
+    try:
+      # input("1")
+      if (current_side == last_advice) and (current_qty == quantity):
+        # input("2")
+        print(f"Skipping order because current_positions.side and current_qty are the same")
+        return
+    except Exception as e:
+      print(e)
+      pass
+
+    try: side
+    except: side = last_advice
+    print(f"Setting quantity = quantity_delta")
+    try: quantity_delta
+    except: quantity_delta = quantity
+    print(f"Quantity: {quantity}, qty delta: {quantity_delta}")
+    side, quantity = qty_delta(current_qty, quantity, current_side, last_advice, limit_price, side, ext_hours)
+
+    #if abs(current_qty) != abs(quantity):
+      #print("Sending regular order")
+      #send_order(limit_price, quantity, side=last_advice)
+
+    def check_fill(current_positions, current_qty, current_side, side, quantity, target_qty):
+      print("In check_fill")
+      
       try:
         old_positions = current_positions
         old_qty = current_qty
-        old_market_value = current_market_value
+        #old_market_value = current_market_value
         old_side = current_side
+        wait(5)
         current_positions, current_qty, current_market_value, current_side = get_positions()
-        print(f"Current qty: {current_qty}, qty {quantity}")
+        print(f"Current qty: {current_qty}, quantity: {quantity}")
         print(f"Current side: {current_side}, last advice: {last_advice}")
+        #if quantity < 1:
+          #filled = True
+          #return filled
         if old_qty == current_qty and old_side == current_side:
           filled = False
-        else: filled = True
-        # if (abs(current_qty) == abs(quantity)) and (current_side == last_advice):
-        #   filled = True
-        # else: 
-        #   filled = False
+        if abs(target_qty) == abs(current_qty) and last_advice == current_side:
+          filled = True
+        else:
+          filled = False
+        
+        try: side
+        except: side = last_advice
+        side, quantity = qty_delta(current_qty, quantity, current_side, last_advice, limit_price, side, ext_hours)
       except Exception as e:
         print(e)
         filled = False
 
       return filled
     
-    filled = check_fill()
+    print(f"Target qty: {target_qty}")
+    filled = check_fill(current_positions, current_qty, current_side, side, quantity, target_qty)
     if filled:
       play_sound("filled")
     print(f"Filled: {filled}")
     # input("6")
-    def get_filled(filled=filled, limit_price=limit_price):
+    def get_filled(filled, limit_price, quantity, side):
+      i = 0
       while not filled:
-        if last_advice == "sell":
+        side, quantity = qty_delta(current_qty, quantity, current_side, last_advice, limit_price, side, ext_hours)
+        if side == "sell":
           limit_price = limit_price - 0.01
         else:
           limit_price = limit_price + 0.01
+        print(f"Iterations: {i}")
+        if i >= 4:
+          if side == "sell":
+            limit_price = limit_price - 1
+          else: limit_price = limit_price + 1
         print(f"Limit price: {limit_price}")
-        send_order(limit_price, quantity, last_advice)
-        wait(5)
-        filled = check_fill()
+        print("Sending order to get filled")
+        send_order(limit_price, quantity, side, ext_hours)
+        i += 1
+        #wait(5)
+        filled = check_fill(current_positions, current_qty, current_side, side, quantity, target_qty)
         print(f"Filled: {filled}")
       else:
         print(f"Filled: {filled}")
@@ -630,14 +733,14 @@ def order(last_advice, e=""):
     # input("7")
     if not filled:
       # input("8")
-      get_filled()
+      print(f"Quantity: {quantity}")
+      get_filled(filled, limit_price, quantity, side)
 
 def send_email(error, e=e):
   print("Sending email...")
   import traceback
   traceback = traceback.format_exc()
   import smtplib, ssl
-
 
   email = "" #@param {type:"string"}
   password = '' #@param {type:"string"}
@@ -679,16 +782,19 @@ def send_email(error, e=e):
       server.sendmail(sender_email, receiver_email, message)
 
 def play_sound(sound):
-  # print("placeholder function for sound")
+  print("placeholder function for sound")
+  #send_email(error="Order filled")
   # https://stackoverflow.com/a/54295274/8142044
   # Play an audio beep. Any audio URL will do.
-  from google.colab import output
-  if sound=="filled":
-    output.eval_js('new Audio("https://proxy.notificationsounds.com/notification-sounds/eventually-590/download/file-sounds-1137-eventually.ogg").play()')
-  if sound=="error":
-    output.eval_js('new Audio("https://proxy.notificationsounds.com/notification-sounds/point-blank-589/download/file-sounds-1136-point-blank.ogg").play()')
+  #from google.colab import output
+  #if sound=="filled":
+    #output.eval_js('new Audio("https://proxy.notificationsounds.com/notification-sounds/eventually-590/download/file-sounds-1137-eventually.ogg").play()')
+  #if sound=="error":
+    #output.eval_js('new Audio("https://proxy.notificationsounds.com/notification-sounds/point-blank-589/download/file-sounds-1136-point-blank.ogg").play()')
 
 def wait(seconds):
+  if seconds <= 0:
+    return
   print(f"Waiting for {seconds} seconds")
   time.sleep(seconds)
 
@@ -697,7 +803,7 @@ def wait(seconds):
 
 try:
 
-  open, open_time, close_time, todays_date = check_if_open()
+  open, open_time, close_time, todays_date, ext_hours = check_if_open()
 
   while open:
     stopwatch_start = time.time()
@@ -712,7 +818,7 @@ try:
 
     order(last_advice)
 
-    open, open_time, close_time, todays_date = check_if_open()
+    open, open_time, close_time, todays_date, ext_hours = check_if_open()
 
     stopwatch_end = time.time()
     time_delta = stopwatch_end - stopwatch_start
@@ -720,7 +826,7 @@ try:
 
     wait(59 - time_delta)
   else:
-    open = wait_for_open()
+    open, ext_hours = wait_for_open()
 except Exception as e:
   send_email(error=e)
   raise(e)
