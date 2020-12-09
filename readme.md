@@ -1,6 +1,6 @@
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/gist/GrahamboJangles/8cbe716adeb7f091a1832dac9a86a4c9/forms-snippets.ipynb)
 
-Yes, there are some lines that could be written better. But I just made this to work. And it does... For the most part.
+Yes, there are some lines that could be written better. But I just made this to work.
 - Uses Alpaca
 
 - Is lite enough to run on a Raspberry Pi Zero.
@@ -20,9 +20,7 @@ Yes, there are some lines that could be written better. But I just made this to 
 - limit the amount of data downloaded during live trading, right now it downloads all data since first trade but that will slow down the script over time
    - i just limited it to 100 minutes as of right now
 - if past market hours and holding positions, close them
-- check the amount of usable cash before each trade to prevent overbuying or selling
 - make strategy volatility adjustable
-
 
 ### maybe fixed
 - going from short to long makes the bot buy too much, but is corrected shortly. not a huge problem but should fix
@@ -56,3 +54,4 @@ Yes, there are some lines that could be written better. But I just made this to 
 - change the closing all positions because of using too much cash to correct to the amount of shares that we want instead of closing out
 - add loading bar for waiting until open
 - sometimes the market closes early on holiday's, should change the close early to a variable using API close times
+- check the amount of usable cash before each trade to prevent overbuying or selling
