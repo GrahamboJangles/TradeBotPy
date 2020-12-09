@@ -41,10 +41,12 @@ convert_time = False
 backtesting = False #@param{type:"boolean"}
   
 ticker = "SPY"
-investment = 21000
-margin_times = 1
+investment = 20000
+keep_as_cash = 70000 - investment
+margin_times = 4
 shorting = True #@param{type:"boolean"}
 
+global trade_ext_hours
 trade_ext_hours = False #@param{type:"boolean"}
 
 start_date = "automatic"
@@ -93,15 +95,24 @@ def check_if_open(api=api):
   if debug:
     open = True
 
-  if trade_ext_hours:
-    current_time, curr_datetime = get_current_datetime()
-    if (current_time > "16") and (current_time < "18"):
+  current_time, curr_datetime = get_current_datetime()
+
+  global trade_ext_hours
+
+  if (current_time >= "16") and (current_time < "18"):
+    ext_hours = True
+    if trade_ext_hours:
       open = True
-      ext_hours = True
-    else:
-      ext_hours = False
-  else: 
+  elif (current_time >= "18") and (current_time < "9"):
     ext_hours = False
+    open = False
+  if (current_time > "15:58") and not trade_ext_hours:
+    open = False
+  if current_time > "9:30" and current_time < "16":
+    open = True
+    ext_hours = True
+
+  ext_hours = True
 
   return open, calendar.open, calendar.close, date, ext_hours
 
@@ -148,7 +159,7 @@ def wait_for_open():
       time.sleep(1-.01)
 
     open, open_time, close_time, todays_date, ext_hours = check_if_open()
-    
+
     print("Getting current time")
     current_time, curr_datetime = get_current_datetime()
 
@@ -441,7 +452,8 @@ def cancel_all_orders():
   api.cancel_all_orders()
 
 def get_positions():
-  #cancel_all_orders()
+  #wait(1)
+  cancel_all_orders()
   try:
     positions = api.get_position(ticker)
     qty = int(positions.qty)
@@ -459,11 +471,19 @@ def get_positions():
     print(e)
   return positions, qty, market_value, side
 account = api.get_account()
+
+def truncate(n, decimals=0):
+  multiplier = 10 ** decimals
+  return int(n * multiplier) / multiplier
+
+
 def order(last_advice, e=""):
-  # input("-2")
+  current_time, curr_datetime = get_current_datetime()
+  if (current_time > "15:58") and not trade_ext_hours:
+    close_margin(last_advice)
+    open = False
   filled = False
   while not filled:
-    # input("-1")
     current_positions, current_qty, current_market_value, current_side = get_positions()
     print(f"Current quantity: {current_qty}")
     print(f"Current side: {current_side}")
@@ -484,23 +504,38 @@ def order(last_advice, e=""):
       buying_power = buying_power / 4
       if margin_times > 1:
         buying_power = buying_power * margin_times
-      buying_power = buying_power - current_market_value
-      keep_as_cash = last_equity - investment
-      useable_cash = last_equity - keep_as_cash
+      buying_power = truncate((buying_power - current_market_value), 2)
+      portfolio_value = float(account.portfolio_value)
+      total_profit = truncate(((portfolio_value - keep_as_cash) - investment), 2)
+      todays_profit = truncate((portfolio_value - last_equity), 2)
+      useable_cash = truncate(((last_equity - keep_as_cash)*margin_times), 2) # Using last_equity instead of portfolio_value because funds aren't settled until the end of day
       target_qty = int(useable_cash / limit_price)
 
       if verbose:
         print(f"Last equity: ${last_equity}")
         print(f"Buying power: ${buying_power}")
         print(f"Keep as cash: ${keep_as_cash}")
+        print(f"Portfolio value: ${portfolio_value}")
+        print(f"Total profit: ${total_profit}")
+        print(f"Today's profit: ${todays_profit}")
         print(f"Useable cash: ${useable_cash}")
         print(f"Limit price: ${limit_price}")
         print(f"Target Qty: {target_qty}")
 
       return limit_price, target_qty, buying_power, useable_cash
-    # input("0")
+
     limit_price, target_qty, buying_power, useable_cash = define_order(e)
     quantity = target_qty
+    if last_advice == None:
+      to_close = True
+      if current_side == "sell":
+        side = "buy"
+        last_advice = "buy"
+      else: 
+        side = "sell"
+        last_advice = "sell"
+      target_qty = 0
+    else: to_close = False
     future_buying_power = useable_cash - (limit_price * quantity)
 
     if future_buying_power < 0:
@@ -562,13 +597,13 @@ def order(last_advice, e=""):
       if current_side == side:
         if (quantity + current_qty) > target_qty:
           print(f"Trade quantity {quantity} + current_qty: {current_qty} would exceed target_qty: {target_qty}")
-          raise("shit")
-          #quantity = current_qty
+          send_email("Trade quantity {quantity} + current_qty: {current_qty} would exceed target_qty: {target_qty}")
+          if target_qty - current_qty > current_qty:
+            quantity = target_qty - current_qty
       quantity = abs(quantity)
       print(f"Quantity: {quantity}")
       print(f"Side: {side}, Last advice: {last_advice}")
-
-      ''' Maybe put a check for positions, and if not in positions then trade? ''' 
+ 
       if quantity < 1:
         filled = True
         return filled
@@ -658,7 +693,7 @@ def order(last_advice, e=""):
                 #side = last_advice
               #else:
                 #side = current_side
-            print(f"What the fuck {quantity_delta} qty_delta")
+            
             if quantity_delta == 0 or (quantity_delta == quantity):
               print(f"Quantity delta is {quantity_delta}, so setting quantity delta to quantity {quantity}")
               quantity_delta = quantity
@@ -701,7 +736,7 @@ def order(last_advice, e=""):
       #print("Sending regular order")
       #send_order(limit_price, quantity, side=last_advice)
 
-    def check_fill(current_positions, current_qty, current_side, side, quantity, target_qty):
+    def check_fill(current_positions, current_qty, current_side, side, quantity, target_qty, to_close=to_close):
       print("In check_fill")
       #open_orders_list = api.list_orders(status='open')
       # Check if there are no open orders
@@ -714,20 +749,21 @@ def order(last_advice, e=""):
         old_qty = current_qty
         #old_market_value = current_market_value
         old_side = current_side
-        wait(5)
+        #wait(5)
         current_positions, current_qty, current_market_value, current_side = get_positions()
         print(f"Current qty: {current_qty}, quantity: {quantity}")
         print(f"Current side: {current_side}, last advice: {last_advice}")
-        #if quantity < 1:
-          #filled = True
-          #return filled
+
         if old_qty == current_qty and old_side == current_side:
           filled = False
         if abs(target_qty) == abs(current_qty) and last_advice == current_side:
           filled = True
         else:
           filled = False
-        
+        if to_close:
+          if current_qty == 0 and current_side != "sell" and current_side != "buy" and current_side != "hold":
+            filled = True
+
         try: side
         except: side = last_advice
         
@@ -738,7 +774,7 @@ def order(last_advice, e=""):
         filled = False
 
       return filled
-    
+
     print(f"Target qty: {target_qty}")
     filled = check_fill(current_positions, current_qty, current_side, side, quantity, target_qty)
     if filled:
@@ -761,6 +797,7 @@ def order(last_advice, e=""):
           else: limit_price = limit_price + 1
         print(f"Limit price: {limit_price}")
         print("Sending order to get filled")
+        filled = check_fill(current_positions, current_qty, current_side, side, quantity, target_qty)
         send_order(limit_price, quantity, side, ext_hours)
         i += 1
         #wait(5)
@@ -774,13 +811,49 @@ def order(last_advice, e=""):
       # input("8")
       print(f"Quantity: {quantity}")
       get_filled(filled, limit_price, quantity, side)
+    
+def close_margin(last_advice):
+  global trade_ext_hours
+  trade_ext_hours = True
+  current_positions, current_qty, current_market_value, current_side = get_positions()
+  if current_qty == 0 and current_side != "sell" and current_side != "buy" and current_side != "hold":
+    print("No current positions")
+  else:
+    print("Closing out of margin...")
+    global margin_times
+    margin_times = 1
+
+    if current_qty == 0 and current_side != "sell" and current_side != "buy":
+      print("No current positions")
+
+    order(last_advice, e=e)
+    #send_order(limit_price, quantity=current_qty, side=side, ext_hours=ext_hours)
+
+def close_all_positions():
+      global trade_ext_hours
+      trade_ext_hours = True
+      current_positions, current_qty, current_market_value, current_side = get_positions()
+      if current_qty == 0 and current_side != "sell" and current_side != "buy" and current_side != "hold":
+        print("No current positions")
+      else:
+        print("Closing all positions...")
+        #api.close_all_positions()
+
+        if current_qty == 0 and current_side != "sell" and current_side != "buy":
+          print("No current positions")
+        if current_side == "sell":
+          side = "buy"
+        else: side = "sell"
+        side = None
+        order(side, e=e)
+        #send_order(limit_price, quantity=current_qty, side=side, ext_hours=ext_hours)
 
 def send_email(error, e=e):
   print("Sending email...")
   import traceback
   traceback = traceback.format_exc()
   import smtplib, ssl
-  
+
   email = "" #@param {type:"string"}
   password = '' #@param {type:"string"}
 
@@ -790,27 +863,42 @@ def send_email(error, e=e):
   receiver_email = email
   subject_text = """\
   TRADE BOT"""
+  global message_text
   message_text = str(e)
   message_text = '\n'
   message_text += str(traceback)
+  
+  def newline(n=1):
+    while n > 0:
+      global message_text
+      message_text += '\n'
+      n = n - 1
+  
   try:
     message_text += str(error)
   except:
     pass
-  message_text += '\n'
+  newline()
   try: 
     message_text += positions
   except Exception as e:
     print(e)
+  account = api.get_account()
+  message_text += str(account)
   positions, qty, market_value, side = get_positions()
   message_text += str(positions)
   portfolio_value = float(account.portfolio_value)
+  newline()
   message_text += f"Current value is: ${portfolio_value}"
-  message_text += '\n'
-  message_text += f"Total profit: ${portfolio_value - investment:.2f}"
+  newline()
+  total_profit = (portfolio_value - keep_as_cash) - investment
+  message_text += f"Total profit: ${total_profit:.2f}"
   last_equity = float(account.last_equity)
-  message_text += '\n'
-  message_text += f"Today's profit: ${last_equity - portfolio_value}"
+  newline()
+  todays_profit = portfolio_value - last_equity
+  message_text += f"Today's profit: ${todays_profit:.2f}"
+  newline()
+  message_text += f"Useable cash: {last_equity - keep_as_cash}:.2f"
   message = 'Subject: %s\n%s' % (subject_text, message_text)
   context = ssl.create_default_context()
   with smtplib.SMTP(smtp_server, port) as server:
@@ -837,17 +925,39 @@ def wait(seconds):
   print(f"Waiting {seconds} seconds.")
   time.sleep(seconds)
 
-def wait_for_next_minute():
-  shit = True
-  if shit:
-    current_time, curr_datetime = get_current_datetime()
-    split_time = str(current_time).split(":")
-    seconds = int(split_time[2]) 
-    seconds = 60 - seconds
-    print(f"Waiting {seconds} seconds.")
+def wait_for_new_data():
+  print("Waiting for new data...")
+  ticker_data = api.get_barset(ticker, timeframe="1Min", limit=1)
+  ticker_data = str(ticker_data).split("'t': ")
+  ticker_time = ticker_data[1]
+  ticker_time = ticker_time.split(",")
+  ticker_time = ticker_time[0]
+  last_ticker_time = ticker_time
+  while ticker_time == last_ticker_time:
+    ticker_data = api.get_barset(ticker, timeframe="1Min", limit=1)
+    ticker_data = str(ticker_data).split("'t': ")
+    ticker_time = ticker_data[1]
+    ticker_time = ticker_time.split(",")
+    ticker_time = ticker_time[0]
+    time.sleep(1)
+  print(f"ticker data: {ticker_time}")
+  print(f"last_ticker_data: {last_ticker_time}")
+  print(f"{ticker_time == last_ticker_time}")
+  
+''' These two functions are two different ways of doing the same thing, but wait_for_next_minute requires less API requests. '''
 
-    for i in trange(seconds):
-      time.sleep(1-.01)
+def wait_for_next_minute():
+  current_time, curr_datetime = get_current_datetime()
+  split_time = str(current_time).split(":")
+  seconds = int(split_time[2]) 
+  seconds = 60 - seconds
+  seconds += 5.5 # Alpaca data updates every minute + 5ish seconds
+  print(f"Waiting {seconds} seconds for new data.")
+
+  #for i in trange(seconds):
+    #time.sleep(1-.01)
+
+  time.sleep(seconds)
 
   if seconds <= 0:
     return
@@ -877,11 +987,14 @@ try:
     stopwatch_end = time.time()
     time_delta = stopwatch_end - stopwatch_start
     print(f"Time took: {time_delta}")
-
+    
+    #wait_for_new_data()
     wait_for_next_minute()
     #wait(59 - time_delta)
   else:
+    close_all_positions()
     open, ext_hours = wait_for_open()
 except Exception as e:
+  close_all_positions()
   send_email(error=e)
   raise(e)
