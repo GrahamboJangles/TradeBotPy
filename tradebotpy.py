@@ -19,9 +19,10 @@ from tqdm import tqdm
 from tqdm import trange
 
 # authentication and connection details
-api_key = "" #@param{type:"string"}
-api_secret = "" #@param{type:"string"}
-base_url = 'https://paper-api.alpaca.markets'
+api_key = ""
+api_secret = ""
+#base_url = 'https://paper-api.alpaca.markets'
+base_url = 'https://api.alpaca.markets'
 
 # instantiate REST API
 api = tradeapi.REST(api_key, api_secret, base_url, api_version='v2')
@@ -37,17 +38,24 @@ if debug:
 # Convert utc time to local?
 # Try this if the current time is wrong
 convert_time = False
-
-backtesting = False #@param{type:"boolean"}
   
 ticker = "SPY"
-investment = 20000
-keep_as_cash = 70000 - investment
-margin_times = 4
+#investment = 20000
+investment = 25100
+#keep_as_cash = 70000 - investment
+keep_as_cash = investment - 380
+margin_times = 1
 shorting = True #@param{type:"boolean"}
 
 global trade_ext_hours
 trade_ext_hours = False #@param{type:"boolean"}
+overnight_positions = True
+
+backtesting = False #@param{type:"boolean"}
+# if backtesting:
+#   open = True
+#   debug = True
+#   trade_ext_hours = True
 
 start_date = "automatic"
 end_date = "automatic"
@@ -81,7 +89,7 @@ def check_if_open(api=api):
   todays_date = datetime.today().strftime('%Y-%m-%d')
   date = todays_date
   calendar = api.get_calendar(start=date, end=date)[0]
-  print('The market opened at {} and closed at {} on {}.'.format(
+  print('The market opened at {} and closes at {} on {}.'.format(
         calendar.open,
         calendar.close,
         date
@@ -98,21 +106,28 @@ def check_if_open(api=api):
   current_time, curr_datetime = get_current_datetime()
 
   global trade_ext_hours
+  global ext_hours
+
+  ext_hours = False
 
   if (current_time >= "16") and (current_time < "18"):
     ext_hours = True
     if trade_ext_hours:
       open = True
-  elif (current_time >= "18") and (current_time < "9"):
+  if current_time >= "09" and current_time < "9:30":
+    ext_hours = True
+    if trade_ext_hours:
+      open = True
+  if (current_time >= "18") and (current_time < "9"):
     ext_hours = False
     open = False
-  if (current_time > "15:58") and not trade_ext_hours:
-    open = False
-  if current_time > "9:30" and current_time < "16":
-    open = True
-    ext_hours = True
+  #if (current_time > "15:58") and not trade_ext_hours:
+    #ext_hours = False
+    #open = False
+  if (current_time > "09:30") and (current_time < "16"):
+    ext_hours = False
 
-  ext_hours = True
+  print(f"Open: {open}, ext_hours: {ext_hours}")
 
   return open, calendar.open, calendar.close, date, ext_hours
 
@@ -185,11 +200,11 @@ def get_market_data():
     ticker_data = ticker_data.df
     ticker_data = ticker_data.between_time(start_time, end_time) 
   else:
-    start = "2016-01-01" #@param {type:"date"}
+    start = "2015-01-01" #@param {type:"date"}
     # start = "2014-01-01T09:30:00-04:00"
     start += "T09:30:00-04:00"
-    end = "2016-01-01" #@param {type:"date"}
-    end_today = True
+    end = "2019-01-01" #@param {type:"date"}
+    end_today = True #@param {type:"boolean"}
     
     if not end_today:
       end += "T09:30:00-04:00"
@@ -222,7 +237,7 @@ def add_calculations(data, advice, margin_times=margin_times):
   # advice = stock['advice']
   # print(last_minute_data)
   # input()
-  # stock = 
+
   stock['price change'] = stock['close'].diff(periods=1)
   price_change = stock['price change']# * (int(investment / stock['close'][0]))
 
@@ -308,6 +323,11 @@ def add_calculations(data, advice, margin_times=margin_times):
         correct[i] =  "INCORRECT"
     time_end = time.time()
     print(f"count_correct took {time_end - time_start} seconds")
+    # for i in trange(1, len(real_choice), disable=not backtesting, desc="Converting HOLDs and calculating backtest correct/incorrect... [3/3]"):
+    # advice = [advice[i-1] for i in advice if advice[i] == "HOLD"]
+    # real_choice = [real_choice[i-1] for i in real_choice if real_choice[i] == "HOLD"]
+    
+    # correct = correct[i]
 
   def percent_right():
     # did this cuz counting the number of 'correct' includes the incorrect
@@ -443,8 +463,7 @@ def add_calculations(data, advice, margin_times=margin_times):
 
 def get_advice(data, strategy="default"):
   if strategy == "default":
-    #your strat here
-
+#your strat here
     return advice, last_advice
 
 def cancel_all_orders():
@@ -482,12 +501,15 @@ def order(last_advice, e=""):
   if (current_time > "15:58") and not trade_ext_hours:
     close_margin(last_advice)
     open = False
+  if (current_time > "15:58") and not overnight_positions:
+    last_advice = None
+    open = False
   filled = False
   while not filled:
     current_positions, current_qty, current_market_value, current_side = get_positions()
     print(f"Current quantity: {current_qty}")
     print(f"Current side: {current_side}")
-    print(f"Current market value: {current_market_value}")
+    print(f"Current market value: ${current_market_value}")
 
     def define_order(e=""):
       if verbose:
@@ -495,21 +517,44 @@ def order(last_advice, e=""):
       close_prices = market_data['close']
       last_close = close_prices[-1]
       limit_price = last_close
-      global account
+      account = api.get_account()
       last_equity = float(account.last_equity)
       if e == "insufficient buying power":
         buying_power = float(account.regt_buying_power)
       else:
         buying_power = float(account.buying_power)
       buying_power = buying_power / 4
-      if margin_times > 1:
+      global ext_hours
+      if not ext_hours:
         buying_power = buying_power * margin_times
       buying_power = truncate((buying_power - current_market_value), 2)
       portfolio_value = float(account.portfolio_value)
-      total_profit = truncate(((portfolio_value - keep_as_cash) - investment), 2)
+      total_profit = truncate(((portfolio_value) - investment), 2)
+      total_profit_perc = (total_profit / investment) * 100
       todays_profit = truncate((portfolio_value - last_equity), 2)
+      todays_profit_perc = (todays_profit / last_equity) * 100
+
+      list_orders = api.list_orders(status="closed", direction="asc", limit=1)
+      first_order_fill_price = str(list_orders).split("'filled_at': '")
+      first_order_fill_price = str(first_order_fill_price[1]).split("',")[1]
+      first_order_fill_price = str(first_order_fill_price).split(": '")[1]
+      print(f"First order fill price: {first_order_fill_price}")
+      buy_and_hold = float(limit_price) - float(first_order_fill_price)
+      vs_hold = float(total_profit) - float(buy_and_hold)
+      print(f"Buy and hold: {buy_and_hold:.2f}")
+      print(f"vs_hold: {vs_hold:.2f}")
+
       useable_cash = truncate(((last_equity - keep_as_cash)*margin_times), 2) # Using last_equity instead of portfolio_value because funds aren't settled until the end of day
       target_qty = int(useable_cash / limit_price)
+
+      stop_loss = 1
+      if abs(todays_profit) >= last_equity * (stop_loss/100):
+        print(f"Today's profit: {todays_profit}")
+        send_email("Stop loss")
+        raise Exception("Stop loss")
+      #if stop_loss == 1:
+        #send_email("stop")
+        #raise Exception("stap")
 
       if verbose:
         print(f"Last equity: ${last_equity}")
@@ -517,7 +562,9 @@ def order(last_advice, e=""):
         print(f"Keep as cash: ${keep_as_cash}")
         print(f"Portfolio value: ${portfolio_value}")
         print(f"Total profit: ${total_profit}")
+        print(f"Total profit %: {total_profit_perc:.2f}%")
         print(f"Today's profit: ${todays_profit}")
+        print(f"Today's profit %: {todays_profit_perc:.2f}%")
         print(f"Useable cash: ${useable_cash}")
         print(f"Limit price: ${limit_price}")
         print(f"Target Qty: {target_qty}")
@@ -535,6 +582,7 @@ def order(last_advice, e=""):
         side = "sell"
         last_advice = "sell"
       target_qty = 0
+      print(f"Setting target qty to {target_qty}")
     else: to_close = False
     future_buying_power = useable_cash - (limit_price * quantity)
 
@@ -581,25 +629,31 @@ def order(last_advice, e=""):
     global ext_hours
     
     # input("5")
-    if trade_ext_hours == False:
-      if debug:
-        print("Setting ext_hours to false")
-      ext_hours = False
+    #if trade_ext_hours == False:
+      #if debug:
+        #print("Setting ext_hours to false")
+      #ext_hours = False
 
     # Debugging
     # last_advice = "sell"
     # quantity = 56
     # send_order(limit_price, quantity, last_advice)
     
+    if abs(current_qty) > target_qty+1:
+      send_email("Using too many shares") 
+
+
     def send_order(limit_price, quantity, side, ext_hours, type="limit"):
       cancel_all_orders()
       current_positions, current_qty, current_market_value, current_side = get_positions()
+      if abs(quantity) > target_qty:
+        quantity = current_qty
       if current_side == side:
         if (quantity + current_qty) > target_qty:
           print(f"Trade quantity {quantity} + current_qty: {current_qty} would exceed target_qty: {target_qty}")
-          send_email("Trade quantity {quantity} + current_qty: {current_qty} would exceed target_qty: {target_qty}")
-          if target_qty - current_qty > current_qty:
-            quantity = target_qty - current_qty
+          #send_email("Trade quantity {quantity} + current_qty: {current_qty} would exceed target_qty: {target_qty}")
+          #if target_qty - current_qty > current_qty:
+          quantity = target_qty - current_qty
       quantity = abs(quantity)
       print(f"Quantity: {quantity}")
       print(f"Side: {side}, Last advice: {last_advice}")
@@ -668,6 +722,7 @@ def order(last_advice, e=""):
       if abs(current_qty) != abs(quantity):
           if (abs(current_qty) > abs(quantity)) or (abs(current_qty) < abs(quantity)):
             if current_side == last_advice:
+              print("Setting quantity delta to quantity - current qty because we're on the right side")
               quantity_delta = abs(quantity) - abs(current_qty)
               if quantity_delta > 0:
                 side = current_side
@@ -814,6 +869,10 @@ def order(last_advice, e=""):
     
 def close_margin(last_advice):
   global trade_ext_hours
+  if trade_ext_hours == False:
+    set_trade_ext_hours = False
+  else: set_trade_ext_hours = True
+
   trade_ext_hours = True
   current_positions, current_qty, current_market_value, current_side = get_positions()
   if current_qty == 0 and current_side != "sell" and current_side != "buy" and current_side != "hold":
@@ -826,11 +885,16 @@ def close_margin(last_advice):
     if current_qty == 0 and current_side != "sell" and current_side != "buy":
       print("No current positions")
 
+    market_data = get_market_data()
     order(last_advice, e=e)
+    trade_ext_hours = set_trade_ext_hours
     #send_order(limit_price, quantity=current_qty, side=side, ext_hours=ext_hours)
 
 def close_all_positions():
       global trade_ext_hours
+      if trade_ext_hours == False:
+        set_trade_ext_hours = False
+      else: set_trade_ext_hours = True
       trade_ext_hours = True
       current_positions, current_qty, current_market_value, current_side = get_positions()
       if current_qty == 0 and current_side != "sell" and current_side != "buy" and current_side != "hold":
@@ -845,7 +909,10 @@ def close_all_positions():
           side = "buy"
         else: side = "sell"
         side = None
+
+        market_data = get_market_data()
         order(side, e=e)
+        trade_ext_hours = set_trade_ext_hours
         #send_order(limit_price, quantity=current_qty, side=side, ext_hours=ext_hours)
 
 def send_email(error, e=e):
@@ -876,8 +943,8 @@ def send_email(error, e=e):
   
   try:
     message_text += str(error)
-  except:
-    pass
+  except Exception as e:
+    print(e)
   newline()
   try: 
     message_text += positions
@@ -898,7 +965,7 @@ def send_email(error, e=e):
   todays_profit = portfolio_value - last_equity
   message_text += f"Today's profit: ${todays_profit:.2f}"
   newline()
-  message_text += f"Useable cash: {last_equity - keep_as_cash}:.2f"
+  message_text += f"Useable cash: ${last_equity - keep_as_cash:.2f}"
   message = 'Subject: %s\n%s' % (subject_text, message_text)
   context = ssl.create_default_context()
   with smtplib.SMTP(smtp_server, port) as server:
@@ -964,37 +1031,41 @@ def wait_for_next_minute():
 
 
 
-
-try:
-
-  open, open_time, close_time, todays_date, ext_hours = check_if_open()
-
-  while open:
-    stopwatch_start = time.time()
-    #ticker, start_date, end_date, start_time, end_time
-    market_data = get_market_data()
-
-    advice, last_advice = get_advice(market_data)
-
-    if backtesting:
-      add_calculations(market_data, advice)
-      input("Backtesting done")
-
-    order(last_advice)
+while True:
+  try:
 
     open, open_time, close_time, todays_date, ext_hours = check_if_open()
-
-    stopwatch_end = time.time()
-    time_delta = stopwatch_end - stopwatch_start
-    print(f"Time took: {time_delta}")
-    
-    #wait_for_new_data()
-    wait_for_next_minute()
-    #wait(59 - time_delta)
-  else:
+    if backtesting: open = True
+    while open:
+      stopwatch_start = time.time()
+      #ticker, start_date, end_date, start_time, end_time
+      market_data = get_market_data()
+  
+      advice, last_advice = get_advice(market_data)
+  
+      if backtesting:
+        add_calculations(market_data, advice)
+        input("Backtesting done")
+  
+      order(last_advice)
+  
+      open, open_time, close_time, todays_date, ext_hours = check_if_open()
+  
+      stopwatch_end = time.time()
+      time_delta = stopwatch_end - stopwatch_start
+      print(f"Time took: {time_delta}")
+      
+      wait_for_new_data()
+      #wait_for_next_minute()
+      #wait(59 - time_delta)
+    else:
+      if not overnight_positions:
+        print(f"Closing positions because overnight positions is {overnight_positions}")
+        market_data = get_market_data()
+        close_all_positions()
+      open, ext_hours = wait_for_open()
+  except Exception as e:
+    market_data = get_market_data()
     close_all_positions()
-    open, ext_hours = wait_for_open()
-except Exception as e:
-  close_all_positions()
-  send_email(error=e)
-  raise(e)
+    send_email(error=e)
+    raise Exception(e)
