@@ -20,22 +20,14 @@ Yes, there are some lines that could be written better. But I just made this to 
 - limit the amount of data downloaded during live trading, right now it downloads all data since first trade but that will slow down the script over time
    - i just limited it to 100 minutes as of right now
 - if past market hours and holding positions, close them
-- make strategy volatility adjustable
-
-### maybe fixed
-- going from short to long makes the bot buy too much, but is corrected shortly. not a huge problem but should fix
 
 ## Low priority:
 - correlation graph of bot performance backtest & profit
 - add some additional statistical analysis to the backtesting (STD, # of days up/# of days down)
-- maybe add a debugging mode to print stuff
 - backtest AMZN ext market limit order, gradually increase limit_order difference if not filled with no shorting
-- maybe for
- 
-# KIND OF DONE:
-- might need to add something to check if this has already been run because it appends over and over if i run it multiple times
  
 # DONE:
+- might need to add something to check if this has already been run because it appends over and over if i run it multiple times
 - get rid of HOLD, and just replace with previous action
 - if we can't buy QUANTITY, then trade CASH / limit_price
 - MAKE SURE THAT WE'RE NOT GOING SHORT EVER ok maybe not
@@ -49,9 +41,12 @@ Yes, there are some lines that could be written better. But I just made this to 
 - backtest with 2-4x margin during market hours
 - maybe stop using market orders, seem to be losing quite a bit to slippage depending on volitility
 - add a test to see if we actually get filled, and if not, try again
+- maybe add a debugging mode to print stuff
 - add a graph using Alpaca order data and put it underneath the backtesting graph to compare
 - change the wait time until next day to wait for a specific time delta instead of checking every minute
 - change the closing all positions because of using too much cash to correct to the amount of shares that we want instead of closing out
 - add loading bar for waiting until open
 - sometimes the market closes early on holiday's, should change the close early to a variable using API close times
 - check the amount of usable cash before each trade to prevent overbuying or selling
+- make strategy volatility adjustable
+- going from short to long makes the bot buy too much, but is corrected shortly
