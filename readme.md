@@ -19,6 +19,8 @@ Yes, there are some lines that could be written better. But I just made this to 
 # TO DO:
 - limit the amount of data downloaded during live trading, right now it downloads all data since first trade but that will slow down the script over time
    - i just limited it to 100 minutes as of right now
+
+##kind of done: 
 - if past market hours and holding positions, close them
 
 ## Low priority:
