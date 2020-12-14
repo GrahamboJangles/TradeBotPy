@@ -19,6 +19,8 @@ Yes, there are some lines that could be written better. But I just made this to 
 # TO DO:
 - limit the amount of data downloaded during live trading, right now it downloads all data since first trade but that will slow down the script over time
    - i just limited it to 100 minutes as of right now
+- if order declined due to pattern day trading protections, wait till tomorrow?
+   - maybe if last_equity < 25k and day_trades == 3, don't allow any trades
 
 ## kind of done: 
 - if past market hours and holding positions, close them
