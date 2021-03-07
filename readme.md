@@ -1,6 +1,5 @@
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/gist/GrahamboJangles/8cbe716adeb7f091a1832dac9a86a4c9/forms-snippets.ipynb)
 
-Yes, there are some lines that could be written better. But I just made this to work.
 - Uses Alpaca
 
 - Is lite enough to run on a Raspberry Pi Zero.
