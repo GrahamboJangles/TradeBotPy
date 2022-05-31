@@ -1,5 +1,7 @@
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/gist/GrahamboJangles/8cbe716adeb7f091a1832dac9a86a4c9/forms-snippets.ipynb)
 
+- The most turn-key open-source trading framework.
+
 - Uses Alpaca
 
 - Is lite enough to run on a Raspberry Pi Zero.
@@ -15,7 +17,8 @@
 - Pull requests welcome.
 
 # Instructions:
-- Add your own strategy to `get_advice`
+- Input your Alpaca API Key and API Secret key to lines 23 and 24.
+- Add your own strategy to `get_advice()` (line 500). The strategy should return a list `advice` (`["buy", "sell", "buy", "buy", "sell"]`) and a variable `last_advice` of the last string in `advice`.
 
 # TO DO:
 - limit the amount of data downloaded during live trading, right now it downloads all data since first trade but that will slow down the script over time
