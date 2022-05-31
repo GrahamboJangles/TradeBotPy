@@ -14,6 +14,8 @@
 
 - Pull requests welcome.
 
+# Instructions:
+- Add your own strategy to `get_advice`
 
 # TO DO:
 - limit the amount of data downloaded during live trading, right now it downloads all data since first trade but that will slow down the script over time
